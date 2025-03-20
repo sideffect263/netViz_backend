@@ -4,6 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NetViz Server Status</title>
+    
+    <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/favicon.png">
+    <meta name="theme-color" content="#4f46e5">
+    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -352,6 +359,38 @@
                     <canvas id="rateLimitChart"></canvas>
                 </div>
             </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon primary-icon">
+                        <i class="fas fa-microchip"></i>
+                    </div>
+                    <div class="card-title">CPU Usage</div>
+                </div>
+                <div class="card-value" id="cpu-usage">--</div>
+                <div class="card-change" id="cpu-info">
+                    <span>Retrieving CPU info...</span>
+                </div>
+                <div class="progress-container" style="margin-top: 10px; height: 8px; background-color: #e5e7eb; border-radius: 4px; overflow: hidden;">
+                    <div id="cpu-progress" style="height: 100%; width: 0%; background-color: var(--primary); transition: width 0.3s ease;"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon warning-icon">
+                        <i class="fas fa-memory"></i>
+                    </div>
+                    <div class="card-title">Memory Usage</div>
+                </div>
+                <div class="card-value" id="memory-usage">--</div>
+                <div class="card-change" id="memory-info">
+                    <span>Retrieving memory info...</span>
+                </div>
+                <div class="progress-container" style="margin-top: 10px; height: 8px; background-color: #e5e7eb; border-radius: 4px; overflow: hidden;">
+                    <div id="memory-progress" style="height: 100%; width: 0%; background-color: var(--warning); transition: width 0.3s ease;"></div>
+                </div>
+            </div>
         </div>
 
         <section class="endpoints-section">
@@ -362,6 +401,43 @@
         </section>
 
         <section class="resources-section">
+            <h2>Resource Utilization</h2>
+            <div class="stats-grid">
+                <div class="card" style="grid-column: span 2;">
+                    <div class="card-header">
+                        <div class="card-title">API Usage Distribution</div>
+                    </div>
+                    <div style="height: 250px;">
+                        <canvas id="requestsDistributionChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <section class="resources-section">
+            <h2>Endpoint Performance</h2>
+            <div class="card">
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid #e5e7eb; text-align: left;">
+                            <th style="padding: 1rem; color: #6b7280;">Endpoint</th>
+                            <th style="padding: 1rem; color: #6b7280;">Status</th>
+                            <th style="padding: 1rem; color: #6b7280;">Requests</th>
+                            <th style="padding: 1rem; color: #6b7280;">Avg. Response Time</th>
+                            <th style="padding: 1rem; color: #6b7280;">Last Response Time</th>
+                        </tr>
+                    </thead>
+                    <tbody id="endpoint-performance-table">
+                        <tr>
+                            <td colspan="5" style="padding: 1rem; text-align: center;">Loading endpoint data...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="resources-section">
+            <h2>Request History</h2>
             <div class="time-filters">
                 <button class="time-filter active" data-time="1h">1h</button>
                 <button class="time-filter" data-time="24h">24h</button>
@@ -507,7 +583,57 @@
                 }
             });
 
-            return { responseChart, requestsChart, rateChart, trafficChart };
+            // API Distribution chart
+            const distributionCtx = document.getElementById('requestsDistributionChart').getContext('2d');
+            const distributionChart = new Chart(distributionCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['DNS', 'Network', 'Security', 'Technology', 'Shodan', 'Health'],
+                    datasets: [{
+                        data: [0, 0, 0, 0, 0, 0],
+                        backgroundColor: [
+                            '#4f46e5', // primary
+                            '#10b981', // success
+                            '#ef4444', // danger
+                            '#f59e0b', // warning
+                            '#6366f1', // indigo
+                            '#14b8a6'  // teal
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                padding: 20
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.raw || 0;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = Math.round((value / total) * 100);
+                                    return `${label}: ${value} requests (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            return { 
+                responseChart, 
+                requestsChart, 
+                rateChart, 
+                trafficChart,
+                distributionChart 
+            };
         }
 
         // Populate endpoints with real status
@@ -582,12 +708,48 @@
                     const totalRequests = data.requests.total;
                     document.getElementById('request-count').textContent = totalRequests.toLocaleString();
                     
+                    // Request trend based on historical data
+                    if (data.historicalData && data.historicalData.requests.length >= 2) {
+                        const latest = data.historicalData.requests[data.historicalData.requests.length - 1];
+                        const previous = data.historicalData.requests[data.historicalData.requests.length - 2];
+                        const diff = latest - previous;
+                        const trend = diff >= 0;
+                        
+                        const reqTrendEl = document.getElementById('request-trend');
+                        reqTrendEl.className = `card-change ${trend ? 'positive' : 'negative'}`;
+                        reqTrendEl.innerHTML = `<i class="fas ${trend ? 'fa-arrow-up' : 'fa-arrow-down'}"></i> <span>${Math.abs(diff)} requests since last measurement</span>`;
+                    }
+                    
                     // Current rate limit usage based on 100 requests per 15 minutes
                     const rateUsage = Math.min(Math.round((totalRequests % 100) / 100 * 100), 100);
                     document.getElementById('rate-limit-usage').innerHTML = `<span>Usage: ${rateUsage}%</span>`;
                     
+                    // CPU usage
+                    if (data.cpu) {
+                        const cpuLoad = data.cpu.load;
+                        const cpuPercent = Math.min(Math.round(cpuLoad * 100 / data.cpu.cores), 100);
+                        document.getElementById('cpu-usage').textContent = `${cpuPercent}%`;
+                        document.getElementById('cpu-info').innerHTML = `<span>${data.cpu.cores} Cores | Load: ${cpuLoad.toFixed(2)}</span>`;
+                        document.getElementById('cpu-progress').style.width = `${cpuPercent}%`;
+                    }
+                    
+                    // Memory usage
+                    if (data.memory) {
+                        const memPercent = data.memory.usagePercent;
+                        const usedGB = (data.memory.used / 1024 / 1024 / 1024).toFixed(2);
+                        const totalGB = (data.memory.total / 1024 / 1024 / 1024).toFixed(2);
+                        document.getElementById('memory-usage').textContent = `${memPercent}%`;
+                        document.getElementById('memory-info').innerHTML = `<span>${usedGB}GB / ${totalGB}GB</span>`;
+                        document.getElementById('memory-progress').style.width = `${memPercent}%`;
+                    }
+                    
                     // Update endpoints status
                     populateEndpoints(data.endpoints);
+                    
+                    // Update endpoint performance table
+                    if (data.endpoints) {
+                        updateEndpointPerformanceTable(data.endpoints);
+                    }
                     
                     // Update chart data
                     responseTimeData = data.responseTime.history.length >= 10 
@@ -625,6 +787,21 @@
                     charts.rateChart.data.datasets[0].data = rateLimitData;
                     charts.rateChart.update();
                     
+                    // Update requests distribution chart
+                    if (data.requests) {
+                        const requestsData = [
+                            data.requests.dns || 0,
+                            data.requests.network || 0,
+                            data.requests.security || 0,
+                            data.requests.tech || 0,
+                            data.requests.shodan || 0,
+                            data.requests.health || 0
+                        ];
+                        
+                        charts.distributionChart.data.datasets[0].data = requestsData;
+                        charts.distributionChart.update();
+                    }
+                    
                     // Update last refreshed time
                     const now = new Date();
                     document.getElementById('last-updated').textContent = `Last updated: ${now.toLocaleTimeString()}`;
@@ -634,6 +811,78 @@
                     document.getElementById('server-status').textContent = 'Connection Error';
                     document.getElementById('server-status').style.color = '#ef4444';
                 });
+        }
+
+        // Update endpoint performance table
+        function updateEndpointPerformanceTable(endpoints) {
+            const tableBody = document.getElementById('endpoint-performance-table');
+            tableBody.innerHTML = '';
+            
+            const endpointNames = {
+                'dns': 'DNS API',
+                'network': 'Network API',
+                'security': 'Security API',
+                'tech': 'Technology API',
+                'shodan': 'Shodan API',
+                'health': 'Health Check'
+            };
+            
+            // Create an array from the endpoints object to sort
+            const endpointArray = Object.keys(endpoints).map(key => {
+                return {
+                    name: key,
+                    displayName: endpointNames[key] || key,
+                    ...endpoints[key]
+                };
+            });
+            
+            // Sort by request count (descending)
+            endpointArray.sort((a, b) => b.requestCount - a.requestCount);
+            
+            endpointArray.forEach(endpoint => {
+                const row = document.createElement('tr');
+                row.style.borderBottom = '1px solid #e5e7eb';
+                
+                // Get the last response time (most recent)
+                let lastResponseTime = 'N/A';
+                if (endpoint.responseTimeHistory && endpoint.responseTimeHistory.length > 0) {
+                    lastResponseTime = `${endpoint.responseTimeHistory[endpoint.responseTimeHistory.length - 1]}ms`;
+                }
+                
+                row.innerHTML = `
+                    <td style="padding: 1rem;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <i class="fas fa-${getEndpointIcon(endpoint.name)}" style="color: #4f46e5;"></i>
+                            <span>${endpoint.displayName}</span>
+                        </div>
+                    </td>
+                    <td style="padding: 1rem;">
+                        <span class="endpoint-status ${endpoint.status === 'up' ? 'status-up' : 'status-down'}">
+                            <i class="fas ${endpoint.status === 'up' ? 'fa-check-circle' : 'fa-times-circle'}"></i>
+                            <span>${endpoint.status.toUpperCase()}</span>
+                        </span>
+                    </td>
+                    <td style="padding: 1rem;">${endpoint.requestCount.toLocaleString()}</td>
+                    <td style="padding: 1rem;">${endpoint.avgResponseTime}ms</td>
+                    <td style="padding: 1rem;">${lastResponseTime}</td>
+                `;
+                
+                tableBody.appendChild(row);
+            });
+        }
+        
+        // Get an appropriate icon for the endpoint
+        function getEndpointIcon(endpointName) {
+            const icons = {
+                'dns': 'globe',
+                'network': 'network-wired',
+                'security': 'lock',
+                'tech': 'microchip',
+                'shodan': 'search',
+                'health': 'heart'
+            };
+            
+            return icons[endpointName] || 'server';
         }
 
         // Refresh all data

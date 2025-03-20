@@ -20,6 +20,17 @@ let requestCounts = {
 const responseTimes = [];
 const MAX_RESPONSE_TIMES = 100;
 
+// Track response times per endpoint
+const endpointResponseTimes = {
+    dns: [],
+    network: [],
+    security: [],
+    tech: [],
+    shodan: [],
+    health: []
+};
+const MAX_ENDPOINT_TIMES = 50;
+
 // Store historical data for charts
 const historicalData = {
     requests: [],
@@ -38,6 +49,14 @@ const recordRequest = (endpoint) => (req, res, next) => {
         responseTimes.push(duration);
         if (responseTimes.length > MAX_RESPONSE_TIMES) {
             responseTimes.shift();
+        }
+        
+        // Record endpoint-specific response time
+        if (endpointResponseTimes[endpoint]) {
+            endpointResponseTimes[endpoint].push(duration);
+            if (endpointResponseTimes[endpoint].length > MAX_ENDPOINT_TIMES) {
+                endpointResponseTimes[endpoint].shift();
+            }
         }
         
         // Increment request counter
@@ -70,6 +89,13 @@ const calculateAverageResponseTime = () => {
     return Math.round(sum / responseTimes.length);
 };
 
+// Calculate average response time for a specific endpoint
+const calculateEndpointResponseTime = (endpoint) => {
+    if (!endpointResponseTimes[endpoint] || endpointResponseTimes[endpoint].length === 0) return 0;
+    const sum = endpointResponseTimes[endpoint].reduce((a, b) => a + b, 0);
+    return Math.round(sum / endpointResponseTimes[endpoint].length);
+};
+
 // Get server metrics
 router.get('/', (req, res) => {
     const uptime = Date.now() - serverStartTime;
@@ -79,6 +105,17 @@ router.get('/', (req, res) => {
     const freeMem = os.freemem();
     const memUsage = Math.round(((totalMem - freeMem) / totalMem) * 100);
     const cpuLoad = os.loadavg()[0]; // 1 minute load average
+    
+    // Calculate endpoint statistics
+    const endpointStats = {};
+    for (const endpoint in endpointResponseTimes) {
+        endpointStats[endpoint] = {
+            status: 'up',
+            avgResponseTime: calculateEndpointResponseTime(endpoint),
+            requestCount: requestCounts[endpoint],
+            responseTimeHistory: endpointResponseTimes[endpoint].slice(-10)
+        };
+    }
     
     res.json({
         status: 'healthy',
@@ -98,13 +135,7 @@ router.get('/', (req, res) => {
             current: calculateAverageResponseTime(),
             history: responseTimes.slice(-10) // last 10 response times
         },
-        endpoints: {
-            dns: { status: 'up' },
-            network: { status: 'up' },
-            security: { status: 'up' },
-            tech: { status: 'up' },
-            shodan: { status: 'up' }
-        },
+        endpoints: endpointStats,
         historicalData: {
             requests: historicalData.requests.slice(-24), // Last 24 data points
             responseTime: historicalData.responseTime.slice(-24),
@@ -126,6 +157,10 @@ router.post('/reset', (req, res) => {
     };
     
     responseTimes.length = 0;
+    
+    for (const endpoint in endpointResponseTimes) {
+        endpointResponseTimes[endpoint] = [];
+    }
     
     res.json({ message: 'Metrics reset successfully' });
 });
