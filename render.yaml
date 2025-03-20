@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: netscan360-server
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SHODAN_API_KEY
+        sync: false
+      - key: VIRUSTOTAL_API_KEY
+        sync: false
+      - key: IPINFO_API_KEY
+        sync: false
+      - key: CORS_ORIGIN
+        value: YOUR_FRONTEND_URL_HERE 

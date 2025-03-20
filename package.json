@@ -1,0 +1,37 @@
+{
+  "name": "netscan360-server",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.2",
+    "cheerio": "^1.0.0-rc.12",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.1.4",
+    "helmet": "^7.1.0",
+    "http-proxy-middleware": "^2.0.6",
+    "https": "^1.0.0",
+    "ip-geolocation-api-javascript-sdk": "^1.0.9",
+    "morgan": "^1.10.0",
+    "netscan360-server": "file:",
+    "node-dns-sd": "^1.0.1",
+    "swagger-ui-express": "^5.0.0",
+    "tls-check": "^1.0.0",
+    "whois-json": "^2.0.4",
+    "winston": "^3.11.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "nodemon": "^3.0.1",
+    "supertest": "^6.3.3"
+  }
+}
