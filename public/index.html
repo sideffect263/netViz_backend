@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetViz Server Status</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --secondary: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --dark: #1f2937;
+            --light: #f3f4f6;
+            --card-bg: #ffffff;
+            --border-radius: 12px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+
+        body {
+            background-color: #f9fafb;
+            color: #111827;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        header {
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo i {
+            font-size: 2rem;
+            color: var(--primary);
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--dark);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .card-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 1rem;
+        }
+
+        .primary-icon {
+            background-color: rgba(79, 70, 229, 0.1);
+            color: var(--primary);
+        }
+
+        .success-icon {
+            background-color: rgba(16, 185, 129, 0.1);
+            color: var(--secondary);
+        }
+
+        .warning-icon {
+            background-color: rgba(245, 158, 11, 0.1);
+            color: var(--warning);
+        }
+
+        .danger-icon {
+            background-color: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+        }
+
+        .card-title {
+            font-size: 1rem;
+            color: #6b7280;
+            font-weight: 500;
+        }
+
+        .card-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: var(--dark);
+        }
+
+        .card-change {
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .card-change.positive {
+            color: var(--secondary);
+        }
+
+        .card-change.negative {
+            color: var(--danger);
+        }
+
+        .chart-container {
+            margin-top: 0.5rem;
+            height: 60px;
+        }
+
+        .endpoints-section, .resources-section {
+            margin-bottom: 2rem;
+        }
+
+        h2 {
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            color: var(--dark);
+            font-weight: 600;
+        }
+
+        .endpoints-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+
+        .endpoint-card {
+            padding: 1rem;
+            border-radius: var(--border-radius);
+            background-color: var(--card-bg);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .endpoint-name {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 500;
+        }
+
+        .endpoint-status {
+            display: flex;
+            align-items: center;
+            padding: 0.25rem 0.5rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .status-up {
+            background-color: rgba(16, 185, 129, 0.1);
+            color: var(--secondary);
+        }
+
+        .status-down {
+            background-color: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+        }
+
+        .large-chart {
+            height: 300px;
+            margin-bottom: 2rem;
+        }
+
+        .time-filters {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            justify-content: flex-end;
+        }
+
+        .time-filter {
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            cursor: pointer;
+            border: 1px solid #d1d5db;
+            background-color: white;
+            transition: all 0.2s;
+        }
+
+        .time-filter.active {
+            background-color: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .footer {
+            text-align: center;
+            padding: 2rem 0;
+            color: #6b7280;
+            font-size: 0.875rem;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            .endpoints-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .refresh-btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: var(--border-radius);
+            padding: 0.5rem 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+
+        .refresh-btn:hover {
+            background-color: #4338ca;
+        }
+
+        #last-updated {
+            font-size: 0.875rem;
+            color: #6b7280;
+            margin-top: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <i class="fas fa-network-wired"></i>
+                <h1>NetViz Server Status</h1>
+            </div>
+            <button class="refresh-btn" onclick="refreshData()">
+                <i class="fas fa-sync-alt"></i>
+                Refresh
+            </button>
+        </header>
+
+        <div id="last-updated"></div>
+
+        <div class="stats-grid">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon primary-icon">
+                        <i class="fas fa-server"></i>
+                    </div>
+                    <div class="card-title">Server Status</div>
+                </div>
+                <div class="card-value" id="server-status">Loading...</div>
+                <div class="card-change positive" id="uptime">
+                    <i class="fas fa-clock"></i>
+                    <span>Checking uptime...</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon success-icon">
+                        <i class="fas fa-tachometer-alt"></i>
+                    </div>
+                    <div class="card-title">Response Time</div>
+                </div>
+                <div class="card-value" id="response-time">--</div>
+                <div class="card-change" id="response-trend">
+                    <span>Measuring...</span>
+                </div>
+                <div class="chart-container">
+                    <canvas id="responseChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon warning-icon">
+                        <i class="fas fa-exchange-alt"></i>
+                    </div>
+                    <div class="card-title">API Requests</div>
+                </div>
+                <div class="card-value" id="request-count">--</div>
+                <div class="card-change positive" id="request-trend">
+                    <span>Calculating...</span>
+                </div>
+                <div class="chart-container">
+                    <canvas id="requestsChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon danger-icon">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <div class="card-title">Rate Limit</div>
+                </div>
+                <div class="card-value" id="rate-limit">100 req/15min</div>
+                <div class="card-change" id="rate-limit-usage">
+                    <span>Usage: calculating...</span>
+                </div>
+                <div class="chart-container">
+                    <canvas id="rateLimitChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <section class="endpoints-section">
+            <h2>API Endpoints Status</h2>
+            <div class="endpoints-grid" id="endpoints-container">
+                <!-- Endpoints will be populated here -->
+            </div>
+        </section>
+
+        <section class="resources-section">
+            <div class="time-filters">
+                <button class="time-filter active" data-time="1h">1h</button>
+                <button class="time-filter" data-time="24h">24h</button>
+                <button class="time-filter" data-time="7d">7d</button>
+                <button class="time-filter" data-time="30d">30d</button>
+            </div>
+            <div class="large-chart">
+                <canvas id="trafficChart"></canvas>
+            </div>
+        </section>
+
+        <footer class="footer">
+            <p>© 2023 NetViz Server Monitor • Version 0.1.0</p>
+        </footer>
+    </div>
+
+    <script>
+        // Endpoints data
+        const endpoints = [
+            { name: 'DNS API', path: '/api/dns', icon: 'fa-globe' },
+            { name: 'Network API', path: '/api/network', icon: 'fa-network-wired' },
+            { name: 'Security API', path: '/api/security', icon: 'fa-lock' },
+            { name: 'Technology API', path: '/api/tech', icon: 'fa-microchip' },
+            { name: 'Shodan API', path: '/api/shodan', icon: 'fa-search' },
+            { name: 'Health Check', path: '/api/health', icon: 'fa-heart' }
+        ];
+
+        // Data for charts
+        let responseTimeData = Array(10).fill(0);
+        let requestCountData = Array(10).fill(0);
+        let rateLimitData = Array(10).fill(0);
+        
+        // Traffic chart data
+        const trafficData = {
+            labels: Array.from({length: 24}, (_, i) => `${i}:00`),
+            datasets: [
+                {
+                    label: 'API Requests',
+                    data: Array(24).fill(0),
+                    borderColor: '#4f46e5',
+                    backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }
+            ]
+        };
+
+        // Initialize charts
+        function initCharts() {
+            // Response time mini chart
+            const responseCtx = document.getElementById('responseChart').getContext('2d');
+            const responseChart = new Chart(responseCtx, {
+                type: 'line',
+                data: {
+                    labels: Array(10).fill(''),
+                    datasets: [{
+                        data: responseTimeData,
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    plugins: { legend: { display: false } },
+                    scales: { x: { display: false }, y: { display: false } },
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+
+            // Requests mini chart
+            const requestsCtx = document.getElementById('requestsChart').getContext('2d');
+            const requestsChart = new Chart(requestsCtx, {
+                type: 'line',
+                data: {
+                    labels: Array(10).fill(''),
+                    datasets: [{
+                        data: requestCountData,
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    plugins: { legend: { display: false } },
+                    scales: { x: { display: false }, y: { display: false } },
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+
+            // Rate limit mini chart
+            const rateCtx = document.getElementById('rateLimitChart').getContext('2d');
+            const rateChart = new Chart(rateCtx, {
+                type: 'line',
+                data: {
+                    labels: Array(10).fill(''),
+                    datasets: [{
+                        data: rateLimitData,
+                        borderColor: '#ef4444',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    plugins: { legend: { display: false } },
+                    scales: { x: { display: false }, y: { display: false } },
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+
+            // Traffic chart
+            const trafficCtx = document.getElementById('trafficChart').getContext('2d');
+            const trafficChart = new Chart(trafficCtx, {
+                type: 'line',
+                data: trafficData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top' }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            }
+                        }
+                    }
+                }
+            });
+
+            return { responseChart, requestsChart, rateChart, trafficChart };
+        }
+
+        // Populate endpoints with real status
+        function populateEndpoints(endpointStatuses) {
+            const container = document.getElementById('endpoints-container');
+            container.innerHTML = '';
+            
+            endpoints.forEach(endpoint => {
+                const name = endpoint.path.split('/api/')[1];
+                const status = endpointStatuses && endpointStatuses[name] 
+                    ? endpointStatuses[name].status 
+                    : 'unknown';
+                    
+                const endpointEl = document.createElement('div');
+                endpointEl.className = 'endpoint-card';
+                endpointEl.innerHTML = `
+                    <div class="endpoint-name">
+                        <i class="fas ${endpoint.icon}"></i>
+                        <span>${endpoint.name}</span>
+                    </div>
+                    <div class="endpoint-status ${status === 'up' ? 'status-up' : 'status-down'}">
+                        <i class="fas ${status === 'up' ? 'fa-check-circle' : 'fa-times-circle'}"></i>
+                        <span>${status.toUpperCase()}</span>
+                    </div>
+                `;
+                container.appendChild(endpointEl);
+            });
+        }
+
+        // Format uptime
+        function formatUptime(seconds) {
+            const days = Math.floor(seconds / 86400);
+            const hours = Math.floor((seconds % 86400) / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            
+            if (days > 0) {
+                return `${days} day${days !== 1 ? 's' : ''} ${hours} hr${hours !== 1 ? 's' : ''}`;
+            } else if (hours > 0) {
+                return `${hours} hr${hours !== 1 ? 's' : ''} ${minutes} min${minutes !== 1 ? 's' : ''}`;
+            } else {
+                return `${minutes} min${minutes !== 1 ? 's' : ''}`;
+            }
+        }
+
+        // Update server status using real metrics
+        function updateServerStatus() {
+            fetch('/api/metrics')
+                .then(response => response.json())
+                .then(data => {
+                    // Server status
+                    document.getElementById('server-status').textContent = data.status === 'healthy' ? 'Operational' : 'Issues Detected';
+                    document.getElementById('uptime').innerHTML = `<i class="fas fa-clock"></i> <span>Uptime: ${formatUptime(data.uptime)}</span>`;
+                    
+                    // Response time
+                    const responseTime = data.responseTime.current;
+                    document.getElementById('response-time').textContent = `${responseTime}ms`;
+                    
+                    // Response time trend
+                    const responseTimes = data.responseTime.history;
+                    if (responseTimes.length >= 2) {
+                        const avgPrevious = responseTimes.slice(0, -1).reduce((a, b) => a + b, 0) / (responseTimes.length - 1);
+                        const current = responseTimes[responseTimes.length - 1];
+                        const diff = avgPrevious - current;
+                        const trend = diff >= 0;
+                        
+                        const trendEl = document.getElementById('response-trend');
+                        trendEl.className = `card-change ${trend ? 'positive' : 'negative'}`;
+                        trendEl.innerHTML = `<i class="fas ${trend ? 'fa-arrow-down' : 'fa-arrow-up'}"></i> <span>${Math.abs(Math.round((diff / avgPrevious) * 100))}% from avg</span>`;
+                    }
+                    
+                    // Request counts
+                    const totalRequests = data.requests.total;
+                    document.getElementById('request-count').textContent = totalRequests.toLocaleString();
+                    
+                    // Current rate limit usage based on 100 requests per 15 minutes
+                    const rateUsage = Math.min(Math.round((totalRequests % 100) / 100 * 100), 100);
+                    document.getElementById('rate-limit-usage').innerHTML = `<span>Usage: ${rateUsage}%</span>`;
+                    
+                    // Update endpoints status
+                    populateEndpoints(data.endpoints);
+                    
+                    // Update chart data
+                    responseTimeData = data.responseTime.history.length >= 10 
+                        ? data.responseTime.history.slice(-10) 
+                        : [...Array(10 - data.responseTime.history.length).fill(0), ...data.responseTime.history];
+                        
+                    // Update request data if historical data exists
+                    if (data.historicalData && data.historicalData.requests.length) {
+                        // Use differences for request chart
+                        const reqData = data.historicalData.requests;
+                        requestCountData = reqData.length >= 10 
+                            ? reqData.slice(-10).map((val, i, arr) => i > 0 ? val - arr[i-1] : val)
+                            : [...Array(10 - reqData.length).fill(0), ...reqData.map((val, i, arr) => i > 0 ? val - arr[i-1] : val)];
+                            
+                        // Update traffic chart
+                        charts.trafficChart.data.datasets[0].data = data.historicalData.requests;
+                        charts.trafficChart.data.labels = data.historicalData.timestamp.map(ts => {
+                            const date = new Date(ts);
+                            return `${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
+                        });
+                        charts.trafficChart.update();
+                    }
+                    
+                    // Update rate limit data
+                    rateLimitData.shift();
+                    rateLimitData.push(rateUsage);
+                    
+                    // Update charts
+                    charts.responseChart.data.datasets[0].data = responseTimeData;
+                    charts.responseChart.update();
+                    
+                    charts.requestsChart.data.datasets[0].data = requestCountData;
+                    charts.requestsChart.update();
+                    
+                    charts.rateChart.data.datasets[0].data = rateLimitData;
+                    charts.rateChart.update();
+                    
+                    // Update last refreshed time
+                    const now = new Date();
+                    document.getElementById('last-updated').textContent = `Last updated: ${now.toLocaleTimeString()}`;
+                })
+                .catch(error => {
+                    console.error('Error fetching server status:', error);
+                    document.getElementById('server-status').textContent = 'Connection Error';
+                    document.getElementById('server-status').style.color = '#ef4444';
+                });
+        }
+
+        // Refresh all data
+        function refreshData() {
+            updateServerStatus();
+        }
+
+        // Handle time filter clicks
+        document.querySelectorAll('.time-filter').forEach(filter => {
+            filter.addEventListener('click', () => {
+                document.querySelectorAll('.time-filter').forEach(f => f.classList.remove('active'));
+                filter.classList.add('active');
+                
+                // In a real implementation, this would fetch data for the selected time period
+                const time = filter.getAttribute('data-time');
+                console.log(`Selected time period: ${time}`);
+            });
+        });
+
+        // Initialize
+        let charts = {};
+        document.addEventListener('DOMContentLoaded', () => {
+            charts = initCharts();
+            updateServerStatus();
+            
+            // Auto refresh every 30 seconds
+            setInterval(refreshData, 30000);
+        });
+    </script>
+</body>
+</html> 

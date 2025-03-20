@@ -4,6 +4,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
+const path = require('path');
 
 // Import routes
 const dnsRoutes = require('./routes/dns');
@@ -11,6 +12,7 @@ const networkRoutes = require('./routes/network');
 const securityRoutes = require('./routes/security');
 const techRoutes = require('./routes/technology');
 const shodanRoutes = require('./routes/shodan');
+const { router: metricsRoutes, recordRequest } = require('./routes/metrics');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -23,6 +25,9 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
+
+// Serve static files from the public directory
+app.use(express.static(path.join(__dirname, '../public')));
 
 // Enhanced Helmet configuration with explicit security headers
 app.use(helmet({
@@ -74,15 +79,21 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// Routes
-app.use('/api/dns', dnsRoutes);
-app.use('/api/network', networkRoutes);
-app.use('/api/security', securityRoutes);
-app.use('/api/tech', techRoutes);
-app.use('/api/shodan', shodanRoutes);
+// Routes with request monitoring
+app.use('/api/dns', recordRequest('dns'), dnsRoutes);
+app.use('/api/network', recordRequest('network'), networkRoutes);
+app.use('/api/security', recordRequest('security'), securityRoutes);
+app.use('/api/tech', recordRequest('tech'), techRoutes);
+app.use('/api/shodan', recordRequest('shodan'), shodanRoutes);
+app.use('/api/metrics', metricsRoutes);
+
+// Serve index.html at the root path
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/index.html'));
+});
 
 // Health check route
-app.get('/api/health', (req, res) => {
+app.get('/api/health', recordRequest('health'), (req, res) => {
   res.status(200).json({ status: 'healthy' });
 });
 
