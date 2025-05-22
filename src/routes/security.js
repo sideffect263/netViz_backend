@@ -3,6 +3,7 @@ const router = express.Router();
 const axios = require('axios');
 const https = require('https');
 const { promisify } = require('util');
+const cache = require('../utils/cache');
 
 // Check SSL/TLS certificate details
 router.get('/ssl/:domain', async (req, res) => {
@@ -14,6 +15,17 @@ router.get('/ssl/:domain', async (req, res) => {
       return res.status(400).json({ error: 'Invalid domain format' });
     }
     
+    // Check cache first
+    const cacheKey = `ssl:${domain}`;
+    const cachedData = cache.get(cacheKey);
+    
+    if (cachedData) {
+      res.setHeader('X-Cache', 'HIT');
+      return res.json(cachedData);
+    }
+    
+    res.setHeader('X-Cache', 'MISS');
+    
     // For popular domains like google.com, provide mock data to avoid errors
     if (domain === 'google.com' || domain === 'facebook.com') {
       // Current date for calculation
@@ -21,7 +33,7 @@ router.get('/ssl/:domain', async (req, res) => {
       const futureDate = new Date();
       futureDate.setMonth(futureDate.getMonth() + 3); // Valid for 3 months from now
       
-      return res.json({
+      const result = {
         domain: domain,
         issuer: 'DigiCert Inc',
         validFrom: now.toISOString(),
@@ -33,8 +45,14 @@ router.get('/ssl/:domain', async (req, res) => {
         subject: { CN: `*.${domain}` },
         serialNumber: '0123456789ABCDEF',
         fingerprint: 'AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99',
-        grade: 'A+'
-      });
+        grade: 'A+',
+        timestamp: new Date().toISOString()
+      };
+      
+      // Store in cache
+      cache.set(cacheKey, result);
+      
+      return res.json(result);
     }
     
     const options = {
@@ -99,7 +117,7 @@ router.get('/ssl/:domain', async (req, res) => {
         });
         
         // If we can reach the site over HTTPS, we know SSL is at least functional
-        return res.json({
+        const fallbackResult = {
           domain,
           issuer: 'Unknown (fallback check)',
           validFrom: 'Unknown',
@@ -112,8 +130,14 @@ router.get('/ssl/:domain', async (req, res) => {
           serialNumber: 'Unknown',
           fingerprint: 'Unknown',
           grade: 'C',
-          fallback: true
-        });
+          fallback: true,
+          timestamp: new Date().toISOString()
+        };
+        
+        // Store in cache with shorter TTL since this is fallback data
+        cache.set(cacheKey, fallbackResult, 15 * 60 * 1000); // 15 minutes
+        
+        return res.json(fallbackResult);
       } catch (axiosError) {
         console.error('SSL fallback check failed:', axiosError.message);
         return res.status(500).json({ 
@@ -141,7 +165,7 @@ router.get('/ssl/:domain', async (req, res) => {
       grade = 'D';
     }
     
-    return res.json({
+    const sslResult = {
       domain,
       issuer: certificate.issuer && (certificate.issuer.CN || certificate.issuer.O) || 'Unknown',
       validFrom: certificate.valid_from || 'Unknown',
@@ -153,8 +177,14 @@ router.get('/ssl/:domain', async (req, res) => {
       subject: certificate.subject || { CN: domain },
       serialNumber: certificate.serialNumber || 'Unknown',
       fingerprint: certificate.fingerprint || 'Unknown',
-      grade
-    });
+      grade,
+      timestamp: new Date().toISOString()
+    };
+    
+    // Store in cache
+    cache.set(cacheKey, sslResult);
+    
+    return res.json(sslResult);
   } catch (error) {
     console.error('SSL check error:', error.message);
     
@@ -176,6 +206,17 @@ router.get('/headers/:domain', async (req, res) => {
     if (!domain || !domain.match(/^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9](?:\.[a-zA-Z]{2,})+$/)) {
       return res.status(400).json({ error: 'Invalid domain format' });
     }
+    
+    // Check cache first
+    const cacheKey = `headers:${domain}`;
+    const cachedData = cache.get(cacheKey);
+    
+    if (cachedData) {
+      res.setHeader('X-Cache', 'HIT');
+      return res.json(cachedData);
+    }
+    
+    res.setHeader('X-Cache', 'MISS');
     
     const response = await axios.get(`https://${domain}`, {
       headers: {
@@ -250,7 +291,7 @@ router.get('/headers/:domain', async (req, res) => {
       details['X-XSS-Protection'] = 'Present';
     } else {
       details['X-XSS-Protection'] = 'Missing';
-      recommendations['X-XSS-Protection'] = 'Add X-XSS-Protection: 1; mode=block to enable XSS filtering';
+      recommendations['X-XSS-Protection'] = 'Add X-XSS-Protection: 1; mode=block to enable XSS protection';
     }
     
     // Check for Referrer-Policy
@@ -298,21 +339,27 @@ router.get('/headers/:domain', async (req, res) => {
     else if (score >= 3) grade = 'D';
     else grade = 'F';
     
-    res.json({
+    // Prepare the result
+    const result = {
       domain,
+      score,
+      total,
+      percentage: Math.round((score / total) * 100),
       headers: securityHeaders,
-      score: {
-        score,
-        total,
-        grade,
-        details,
-        recommendations
-      }
-    });
+      details,
+      recommendations,
+      grade,
+      timestamp: new Date().toISOString()
+    };
+    
+    // Store in cache
+    cache.set(cacheKey, result);
+    
+    res.json(result);
   } catch (error) {
     console.error('Security headers check error:', error);
     res.status(500).json({ 
-      error: 'Failed to check security headers',
+      error: 'Failed to retrieve security headers',
       message: error.message
     });
   }

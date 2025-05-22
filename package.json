@@ -11,6 +11,12 @@
     "dev": "nodemon src/index.js"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.51.0",
+    "@langchain/anthropic": "^0.3.21",
+    "@langchain/community": "^0.3.44",
+    "@langchain/core": "^0.3.57",
+    "@modelcontextprotocol/sdk": "^1.11.4",
+    "@smithery/sdk": "^1.3.3",
     "axios": "^1.6.2",
     "cheerio": "^1.0.0-rc.12",
     "cors": "^2.8.5",
@@ -21,13 +27,19 @@
     "http-proxy-middleware": "^2.0.6",
     "https": "^1.0.0",
     "ip-geolocation-api-javascript-sdk": "^1.0.9",
+    "langchain": "^0.3.27",
+    "mcp-nmap-server": "^1.0.1",
+    "mongodb": "^6.16.0",
     "morgan": "^1.10.0",
     "netscan360-server": "file:",
     "node-dns-sd": "^1.0.1",
+    "node-nmap": "^4.0.0",
     "swagger-ui-express": "^5.0.0",
     "tls-check": "^1.0.0",
+    "uuid": "^9.0.0",
     "whois-json": "^2.0.4",
-    "winston": "^3.11.0"
+    "winston": "^3.11.0",
+    "ws": "^8.18.2"
   },
   "devDependencies": {
     "jest": "^29.7.0",
