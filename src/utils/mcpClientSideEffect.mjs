@@ -4,7 +4,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 // Direct server URL for the Render-hosted nmap MCP server
 const NMAP_SERVER_URL = "https://nmap-mcp-server.ofektechnology.com/mcp";
 // Default timeout value in milliseconds (3 minutes instead of 60 seconds)
-const DEFAULT_TIMEOUT = 180000;
+const DEFAULT_TIMEOUT = 1800000;
 
 let clientInstance;
 let nmapScanTool;
@@ -188,7 +188,8 @@ async function invokeNmapScan(params) {
     try {
       const result = await clientInstance.callTool({
         name: nmapScanTool.name,
-        arguments: toolInput
+        arguments: toolInput,
+        timeout: DEFAULT_TIMEOUT
       });
       
       console.log(`Direct Nmap 'nmapScan' tool invocation successful at simplification level ${simplificationLevel}.`);
