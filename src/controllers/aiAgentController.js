@@ -1,6 +1,7 @@
 const { v4: uuidv4 } = require('uuid');
 const { processUserCommand } = require('../services/aiAgentService');
 const websocketManager = require('../websocketManager');
+const Conversation = require('../models/Conversation');
 
 /**
  * Process a command through the AI agent
@@ -9,7 +10,7 @@ const websocketManager = require('../websocketManager');
  */
 exports.processCommand = async (req, res) => {
   try {
-    const { command } = req.body;
+    const { command, conversationId } = req.body;
     let { sessionId } = req.body;
     
     // Validate command
@@ -31,17 +32,67 @@ exports.processCommand = async (req, res) => {
       websocketManager.sendEventToSession(sessionId, eventData);
     };
     
+    // Get conversation history if conversationId is provided and user is authenticated
+    let conversationHistory = [];
+    let conversation = null;
+    
+    if (conversationId && req.user) {
+      try {
+        conversation = await Conversation.findById(conversationId);
+        
+        // Verify the conversation belongs to the user
+        if (conversation && conversation.user.toString() === req.user.id) {
+          // Add the new user message to the conversation only if it's not a duplicate of the last one
+          const lastMessage = conversation.messages[conversation.messages.length - 1];
+
+          if (!(lastMessage && lastMessage.role === 'user' && lastMessage.content === command)) {
+            conversation.messages.push({
+              role: 'user',
+              content: command
+            });
+          }
+
+          conversation.sessionId = sessionId;
+          await conversation.save();
+          
+          conversationHistory = conversation.messages;
+        }
+      } catch (error) {
+        console.error('Error fetching conversation:', error);
+        // Continue without conversation history
+      }
+    }
+    // Create new conversation if authenticated but no conversationId
+    else if (req.user && !conversationId) {
+      try {
+        conversation = await Conversation.create({
+          user: req.user.id,
+          messages: [{
+            role: 'user',
+            content: command
+          }],
+          sessionId
+        });
+        
+        conversationHistory = conversation.messages;
+      } catch (error) {
+        console.error('Error creating conversation:', error);
+        // Continue without saving conversation
+      }
+    }
+    
     // Process the command (this happens asynchronously)
-    // We'll start processing and return the sessionId immediately
+    // We'll start processing and return the sessionId and conversationId immediately
     res.status(202).json({
       success: true,
       message: 'Command received and processing started',
-      sessionId: sessionId
+      sessionId: sessionId,
+      conversationId: conversation ? conversation._id : null
     });
     
     // Now process the command
     try {
-      const result = await processUserCommand(command, sessionId, sendEventToSocket);
+      const result = await processUserCommand(command, sessionId, sendEventToSocket, conversationHistory);
       
       // Send final result via WebSocket too
       sendEventToSocket({
@@ -50,6 +101,15 @@ exports.processCommand = async (req, res) => {
         timestamp: new Date().toISOString(),
         result: result
       });
+      
+      // Save the assistant's response to the conversation if one exists
+      if (conversation && req.user) {
+        conversation.messages.push({
+          role: 'assistant',
+          content: result
+        });
+        await conversation.save();
+      }
       
     } catch (error) {
       console.error('Error processing command:', error);

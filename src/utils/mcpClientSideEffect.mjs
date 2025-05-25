@@ -1,28 +1,26 @@
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { createSmitheryUrl } from "@smithery/sdk/shared/config.js"; // Corrected import path
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 
-// Ensure you have your Smithery API key for the new server in an environment variable
-const SMITHERY_API_KEY = process.env.SMITHERY_NMAP_API_KEY || "your-smithery-api-key";
+// Direct server URL for the Render-hosted nmap MCP server
+const NMAP_SERVER_URL = "https://nmap-mcp-server.ofektechnology.com/mcp";
 // Default timeout value in milliseconds (3 minutes instead of 60 seconds)
 const DEFAULT_TIMEOUT = 180000;
 
-console.log("SMITHERY_NEWMCP_API_KEY:", SMITHERY_API_KEY);
 let clientInstance;
 let nmapScanTool;
-let getInfoTool; // For the 'getInfo' tool on the new server
+let getInfoTool; // For the 'getInfo' tool on the server
 let isInitializing = false; // Flag to prevent re-entrant initialization
 
 async function initializeNewClient() {
   // If already initialized and nmapScanTool is found, return immediately
   if (clientInstance && nmapScanTool) {
-    console.log("New MCP Client already initialized (nmapScanTool found).");
+    console.log("Direct MCP Client already initialized (nmapScanTool found).");
     return clientInstance;
   }
 
   // Prevent re-entry if an initialization is already in progress
   if (isInitializing) {
-    console.log("New MCP Client initialization already in progress, waiting...");
+    console.log("Direct MCP Client initialization already in progress, waiting...");
     let attempts = 0;
     while (isInitializing && attempts < 100) {
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -30,7 +28,7 @@ async function initializeNewClient() {
     }
     if (isInitializing) {
       isInitializing = false; // Reset flag on timeout
-      throw new Error("Timed out waiting for ongoing New MCP client initialization.");
+      throw new Error("Timed out waiting for ongoing Direct MCP client initialization.");
     }
     // After waiting, if it's now initialized, return
     if (clientInstance && nmapScanTool) {
@@ -40,58 +38,53 @@ async function initializeNewClient() {
   }
 
   isInitializing = true;
-  console.log("Starting New MCP Client initialization process...");
+  console.log("Starting Direct MCP Client initialization process...");
 
   try {
-    const config = {
+    // Create transport with direct URL and timeout configuration
+    const transport = new StreamableHTTPClientTransport(NMAP_SERVER_URL, {
       requestTimeout: DEFAULT_TIMEOUT // Increase the default timeout to 3 minutes
-    };
-    const serverUrl = createSmitheryUrl(
-      "https://server.smithery.ai/@sideffect263/nmap-mcp-server", // New server URL
-      { config, apiKey: SMITHERY_API_KEY }
-    );
-
-    const transport = new StreamableHTTPClientTransport(serverUrl);
+    });
 
     clientInstance = new Client({
-      name: "NetVizSideEffectNmapClient", // Updated client name
+      name: "NetVizDirectNmapClient", // Updated client name to reflect direct connection
       version: "1.0.0",
     });
 
-    console.log("Connecting to New Nmap MCP server...");
+    console.log("Connecting to Direct Nmap MCP server...");
     await clientInstance.connect(transport);
-    console.log("Successfully connected to New Nmap MCP server.");
+    console.log("Successfully connected to Direct Nmap MCP server.");
 
     const toolsResponse = await clientInstance.listTools();
-    console.log("Raw tools object from New clientInstance.listTools():", JSON.stringify(toolsResponse, null, 2));
+    console.log("Raw tools object from Direct clientInstance.listTools():", JSON.stringify(toolsResponse, null, 2));
 
     if (toolsResponse && toolsResponse.tools && Array.isArray(toolsResponse.tools)) {
-      console.log(`Available tools on New server: ${toolsResponse.tools.map((t) => t.name).join(", ")}`);
-      // Find tools based on the new server's tool names
+      console.log(`Available tools on Direct server: ${toolsResponse.tools.map((t) => t.name).join(", ")}`);
+      // Find tools based on the server's tool names
       nmapScanTool = toolsResponse.tools.find(tool => tool.name === 'nmapScan');
       getInfoTool = toolsResponse.tools.find(tool => tool.name === 'getInfo');
     } else {
-      console.error("Could not find a .tools array in the response from New clientInstance.listTools()");
+      console.error("Could not find a .tools array in the response from Direct clientInstance.listTools()");
       nmapScanTool = null;
       getInfoTool = null;
     }
 
     if (!nmapScanTool) {
-      console.error("Nmap tool ('nmapScan') not found on the New MCP server. Available tools:", toolsResponse.tools ? toolsResponse.tools.map(t => t.name).join(", ") : "unknown");
-      throw new Error("Nmap tool ('nmapScan') not found on the New MCP server.");
+      console.error("Nmap tool ('nmapScan') not found on the Direct MCP server. Available tools:", toolsResponse.tools ? toolsResponse.tools.map(t => t.name).join(", ") : "unknown");
+      throw new Error("Nmap tool ('nmapScan') not found on the Direct MCP server.");
     }
-    console.log(`Using Nmap tool on New server: ${nmapScanTool.name}`);
+    console.log(`Using Nmap tool on Direct server: ${nmapScanTool.name}`);
 
     if (getInfoTool) {
-      console.log(`Using GetInfo tool on New server: ${getInfoTool.name}`);
+      console.log(`Using GetInfo tool on Direct server: ${getInfoTool.name}`);
     } else {
-      console.warn("GetInfo tool ('getInfo') not found on the New MCP server. This might be optional.");
+      console.warn("GetInfo tool ('getInfo') not found on the Direct MCP server. This might be optional.");
     }
     
     isInitializing = false; // Reset flag on successful completion
     return clientInstance;
   } catch (error) {
-    console.error("Failed to initialize New MCP client:", error);
+    console.error("Failed to initialize Direct MCP client:", error);
     clientInstance = null;
     nmapScanTool = null;
     getInfoTool = null;
@@ -147,7 +140,7 @@ function simplifyNmapFlags(flags, level = 1) {
 }
 
 /**
- * Invokes the Nmap 'nmapScan' tool on the new MCP server with automatic retry on timeout.
+ * Invokes the Nmap 'nmapScan' tool on the Direct MCP server with automatic retry on timeout.
  * @param {Object} params - Parameters for the Nmap tool.
  * @param {string} params.target - The target IP or hostname.
  * @param {string[]} params.nmap_args - Array of Nmap arguments (will be joined into a single string for 'flags').
@@ -155,25 +148,25 @@ function simplifyNmapFlags(flags, level = 1) {
  * @returns {Promise<Object>} - The raw result from the 'nmapScan' tool.
  */
 async function invokeNmapScan(params) {
-  console.log("[invokeNmapScan ENTRY] Checking New client status...");
+  console.log("[invokeNmapScan ENTRY] Checking Direct client status...");
 
   if (!clientInstance || !nmapScanTool) {
-    console.log("[invokeNmapScan] New Client not fully ready (clientInstance or nmapScanTool missing). Attempting to initialize...");
+    console.log("[invokeNmapScan] Direct Client not fully ready (clientInstance or nmapScanTool missing). Attempting to initialize...");
     try {
       await initializeNewClient();
-      console.log("[invokeNmapScan] Initialization attempt finished for New client.");
+      console.log("[invokeNmapScan] Initialization attempt finished for Direct client.");
     } catch (initError) {
-      console.error("Error during explicit initialization in invokeNmapScan for New client:", initError);
-      throw new Error(`New MCP client initialization failed: ${initError.message}`);
+      console.error("Error during explicit initialization in invokeNmapScan for Direct client:", initError);
+      throw new Error(`Direct MCP client initialization failed: ${initError.message}`);
     }
 
     if (!clientInstance || !nmapScanTool) {
-      console.error("[invokeNmapScan] New MCP client still not fully ready after attempted initialization.");
-      throw new Error("New MCP client is not initialized or nmapScan tool not found after re-initialization attempt.");
+      console.error("[invokeNmapScan] Direct MCP client still not fully ready after attempted initialization.");
+      throw new Error("Direct MCP client is not initialized or nmapScan tool not found after re-initialization attempt.");
     }
-    console.log("[invokeNmapScan] New MCP client successfully initialized/confirmed.");
+    console.log("[invokeNmapScan] Direct MCP client successfully initialized/confirmed.");
   } else {
-    console.log("[invokeNmapScan] New Client was already ready. Proceeding.");
+    console.log("[invokeNmapScan] Direct Client was already ready. Proceeding.");
   }
 
   // Start with the original flags
@@ -190,7 +183,7 @@ async function invokeNmapScan(params) {
       flags: currentFlags
     };
     
-    console.log(`Invoking Nmap tool "${nmapScanTool.name}" on New server with params (simplification level ${simplificationLevel}):`, toolInput);
+    console.log(`Invoking Nmap tool "${nmapScanTool.name}" on Direct server with params (simplification level ${simplificationLevel}):`, toolInput);
 
     try {
       const result = await clientInstance.callTool({
@@ -198,12 +191,12 @@ async function invokeNmapScan(params) {
         arguments: toolInput
       });
       
-      console.log(`New Nmap 'nmapScan' tool invocation successful at simplification level ${simplificationLevel}.`);
+      console.log(`Direct Nmap 'nmapScan' tool invocation successful at simplification level ${simplificationLevel}.`);
       
       // The scan succeeded, return the result
       return result;
     } catch (error) {
-      console.error(`Error invoking New Nmap 'nmapScan' tool for target ${params.target} (simplification level ${simplificationLevel}):`, error);
+      console.error(`Error invoking Direct Nmap 'nmapScan' tool for target ${params.target} (simplification level ${simplificationLevel}):`, error);
       
       // Check if it's a timeout error
       const isTimeout = error.message.toLowerCase().includes('timeout') || 
@@ -215,7 +208,7 @@ async function invokeNmapScan(params) {
                               error.message.toLowerCase().includes("disconnected");
       
       if (isConnectionIssue) {
-        console.log("New Client disconnected, attempting to reconnect for 'nmapScan'...");
+        console.log("Direct Client disconnected, attempting to reconnect for 'nmapScan'...");
         clientInstance = null;
         nmapScanTool = null;
         getInfoTool = null;
@@ -224,13 +217,13 @@ async function invokeNmapScan(params) {
         try {
           await initializeNewClient();
           if (!clientInstance || !nmapScanTool) {
-            throw new Error("New MCP client is not initialized or nmapScan tool not found after re-initialization during error handling.");
+            throw new Error("Direct MCP client is not initialized or nmapScan tool not found after re-initialization during error handling.");
           }
-          console.log("Reconnected to New server, continuing with retries...");
+          console.log("Reconnected to Direct server, continuing with retries...");
           // Continue with the next retry attempt (don't increment simplificationLevel)
           continue;
         } catch (reconnectError) {
-          console.error("Error during New Nmap 'nmapScan' invocation after reconnect:", reconnectError);
+          console.error("Error during Direct Nmap 'nmapScan' invocation after reconnect:", reconnectError);
           // If we've collected any partial results, return those
           if (partialResult) {
             console.log("Returning partial results from previous attempt");
@@ -273,6 +266,6 @@ export { initializeNewClient, invokeNmapScan };
 
 // Optional: Initialize the client when the module is loaded.
 // initializeNewClient().catch(error => {
-//   console.error("Initial New MCP client connection failed:", error);
+//   console.error("Initial Direct MCP client connection failed:", error);
 //   // Decide how to handle this - maybe the app can run without it, or it should fail hard.
 // }); 

@@ -1,13 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const aiAgentController = require('../controllers/aiAgentController');
+const { optionalAuth } = require('../middleware/auth');
 
 /**
  * @route   POST /api/agent/command
  * @desc    Process a command through the AI agent
- * @access  Public
+ * @access  Public (but auth is checked if provided)
  */
-router.post('/command', aiAgentController.processCommand);
+router.post('/command', optionalAuth, aiAgentController.processCommand);
 
 /**
  * @route   GET /api/agent/health

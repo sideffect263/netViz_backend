@@ -6,6 +6,11 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 const http = require('http');
+const cookieParser = require('cookie-parser');
+
+// Connect to MongoDB
+const connectDB = require('./config/db');
+connectDB();
 
 // Import WebSocket manager
 const websocketManager = require('./websocketManager');
@@ -16,10 +21,13 @@ const networkRoutes = require('./routes/network');
 const securityRoutes = require('./routes/security');
 const techRoutes = require('./routes/technology');
 const shodanRoutes = require('./routes/shodan');
-const autoHackerRoutes = require('./routes/auto-hacker');
 const { router: metricsRoutes, recordRequest } = require('./routes/metrics');
-// Import AI Agent routes (will create this file next)
+// Import AI Agent routes
 const aiAgentRoutes = require('./routes/aiAgentRoutes');
+// Import Auth routes
+const authRoutes = require('./routes/authRoutes');
+// Import Conversation routes
+const conversationRoutes = require('./routes/conversationRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -32,9 +40,11 @@ app.use(cors({
   // Configure CORS properly
   origin: process.env.CORS_ORIGIN || '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true // Allow cookies to be sent
 }));
 app.use(express.json());
+app.use(cookieParser()); // Add cookie parser
 
 // Serve static files from the public directory
 app.use(express.static(path.join(__dirname, '../public')));
@@ -132,16 +142,63 @@ const aiAgentLimiter = rateLimit({
   }
 });
 
+// Auth rate limiters
+const authLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000, // 10 minutes
+  max: 30, // limit each IP to 30 requests per windowMs for login/register
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    status: 429,
+    message: 'Too many authentication requests. Please wait a few minutes before trying again.',
+    error: 'Auth rate limit exceeded'
+  }
+});
+
+// Separate, more lenient rate limiter for /me endpoint
+const profileLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 60, // Higher limit for profile requests
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    status: 429,
+    message: 'Too many profile requests. Please wait a minute before trying again.',
+    error: 'Profile rate limit exceeded'
+  }
+});
+
+// Conversation rate limiter
+const conversationLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 50, // Higher limit for conversation requests
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    status: 429,
+    message: 'Too many conversation requests. Please wait a minute before trying again.',
+    error: 'Conversation rate limit exceeded'
+  }
+});
+
 // Routes with request monitoring
 app.use('/api/dns', recordRequest('dns'), dnsLimiter, dnsRoutes);
 app.use('/api/network', recordRequest('network'), networkRoutes);
 app.use('/api/security', recordRequest('security'), securityRoutes);
 app.use('/api/tech', recordRequest('tech'), techRoutes);
 app.use('/api/shodan', recordRequest('shodan'), shodanRoutes);
-app.use('/api/auto-hacker', recordRequest('autoHacker'), autoHackerRoutes);
 app.use('/api/metrics', metricsRoutes);
 // Add AI Agent routes
 app.use('/api/agent', recordRequest('aiAgent'), aiAgentLimiter, aiAgentRoutes);
+// Add Auth routes - use different rate limiters for different auth endpoints
+app.use('/api/auth', recordRequest('auth'), authRoutes);
+// Add Conversation routes
+app.use('/api/conversations', recordRequest('conversations'), conversationLimiter, conversationRoutes);
+
+// Apply specific rate limiters to auth routes
+app.use('/api/auth/register', authLimiter);
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/me', profileLimiter);
 
 // Serve index.html at the root path
 app.get('/', (req, res) => {

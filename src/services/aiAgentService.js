@@ -13,6 +13,15 @@ async function getMcpClient() {
   return mcpClientModule;
 }
 
+// Import the OSINT MCP client
+let osintMcpClientModule;
+async function getOsintMcpClient() {
+  if (!osintMcpClientModule) {
+    osintMcpClientModule = await import('../utils/mcpClientOsint.mjs');
+  }
+  return osintMcpClientModule;
+}
+
 // Load documentation for context enhancement
 let documentationCache = null;
 
@@ -204,7 +213,24 @@ function initializeLLM() {
 
 // Enhanced system prompt with documentation
 function getEnhancedSystemPrompt() {
-  const basePrompt = `You are the NetViz AI Agent, an intelligent assistant specialized in network scanning, analysis, and security tasks using tools like Nmap.
+  const basePrompt = `You are the NetViz AI Agent, an intelligent assistant specialized in network scanning, analysis, and OSINT (Open Source Intelligence) gathering using tools like Nmap and various reconnaissance tools.
+
+AVAILABLE TOOLS:
+1. NmapScanner - Advanced port scanning with custom parameters
+2. WhoisLookup - Domain registration information gathering  
+3. DNSRecon - Comprehensive DNS reconnaissance and enumeration
+4. DigLookup - Standard DNS queries using dig command
+5. HostLookup - Simple hostname to IP resolution
+6. OSINTNmapScan - Predefined Nmap scanning via OSINT tools
+7. DNSTwist - Domain permutation analysis for typosquatting detection
+8. OSINTOverview - Comprehensive OSINT analysis combining multiple tools
+
+OSINT CAPABILITIES:
+- Domain intelligence gathering (WHOIS, DNS records, subdomains)
+- Infrastructure reconnaissance (IP addresses, name servers, mail servers)
+- Security analysis (open ports, services, potential vulnerabilities)
+- Brand protection analysis (typosquatting, domain variations)
+- Comprehensive multi-tool analysis for complete target profiling
 
 When responding to questions about your capabilities or scan types, use the following documentation:`;
 
@@ -279,6 +305,9 @@ function parseNmapInput(input) {
 async function initializeTools() {
   // Get the MCP client for Nmap
   const mcpClient = await getMcpClient();
+  
+  // Get the OSINT MCP client
+  const osintMcpClient = await getOsintMcpClient();
 
   const nmapTool = new DynamicTool({
     name: 'NmapScanner',
@@ -347,13 +376,199 @@ The system will automatically retry with simplified parameters if the scan times
     }
   });
 
-  return [nmapTool];
+  // OSINT Tools
+  const whoisTool = new DynamicTool({
+    name: 'WhoisLookup',
+    description: `Performs a WHOIS lookup on a domain to gather registration information.
+Returns detailed information about domain registration including:
+- Domain registration dates
+- Registrar information  
+- Name servers
+- Domain status
+- Contact information (if available)
+
+Usage: Provide just the domain name (e.g., "example.com")`,
+    func: async (input) => {
+      try {
+        console.log(`Performing WHOIS lookup for: ${input}`);
+        const result = await osintMcpClient.invokeOsintTool('whois_lookup', { target: input.trim() });
+        
+        if (result.isError) {
+          return `WHOIS lookup failed: ${result.content[0]?.text || 'Unknown error'}`;
+        }
+        
+        return result.content[0]?.text || 'No WHOIS data returned';
+      } catch (error) {
+        return `Error performing WHOIS lookup: ${error.message}`;
+      }
+    }
+  });
+
+  const dnsReconTool = new DynamicTool({
+    name: 'DNSRecon',
+    description: `Performs comprehensive DNS reconnaissance and enumeration.
+Gathers detailed DNS information including:
+- DNS record enumeration (A, AAAA, NS, MX, TXT, etc.)
+- DNSSEC information
+- Name server details
+- Zone transfer attempts
+
+Usage: Provide the domain name (e.g., "example.com")`,
+    func: async (input) => {
+      try {
+        console.log(`Performing DNS reconnaissance for: ${input}`);
+        const result = await osintMcpClient.invokeOsintTool('dnsrecon_lookup', { target: input.trim() });
+        
+        if (result.isError) {
+          return `DNS reconnaissance failed: ${result.content[0]?.text || 'Unknown error'}`;
+        }
+        
+        return result.content[0]?.text || 'No DNS reconnaissance data returned';
+      } catch (error) {
+        return `Error performing DNS reconnaissance: ${error.message}`;
+      }
+    }
+  });
+
+  const digTool = new DynamicTool({
+    name: 'DigLookup',
+    description: `Performs DNS queries using the dig command.
+Returns standard DNS query results including:
+- A records (IPv4 addresses)
+- AAAA records (IPv6 addresses) 
+- Query timing and server information
+
+Usage: Provide the domain name (e.g., "example.com")`,
+    func: async (input) => {
+      try {
+        console.log(`Performing dig lookup for: ${input}`);
+        const result = await osintMcpClient.invokeOsintTool('dig_lookup', { target: input.trim() });
+        
+        if (result.isError) {
+          return `Dig lookup failed: ${result.content[0]?.text || 'Unknown error'}`;
+        }
+        
+        return result.content[0]?.text || 'No dig data returned';
+      } catch (error) {
+        return `Error performing dig lookup: ${error.message}`;
+      }
+    }
+  });
+
+  const hostTool = new DynamicTool({
+    name: 'HostLookup',
+    description: `Performs simple hostname resolution using the host command.
+Returns basic hostname to IP address mappings including:
+- IPv4 addresses
+- IPv6 addresses
+- Mail server information
+
+Usage: Provide the domain name (e.g., "example.com")`,
+    func: async (input) => {
+      try {
+        console.log(`Performing host lookup for: ${input}`);
+        const result = await osintMcpClient.invokeOsintTool('host_lookup', { target: input.trim() });
+        
+        if (result.isError) {
+          return `Host lookup failed: ${result.content[0]?.text || 'Unknown error'}`;
+        }
+        
+        return result.content[0]?.text || 'No host lookup data returned';
+      } catch (error) {
+        return `Error performing host lookup: ${error.message}`;
+      }
+    }
+  });
+
+  const nmapScanTool = new DynamicTool({
+    name: 'OSINTNmapScan',
+    description: `Performs an Nmap port scan via OSINT tools (different from the main NmapScanner).
+This tool runs a predefined Nmap scan to identify open ports and services.
+Note: This tool uses its own scan parameters internally.
+
+Usage: Provide the target IP address or domain name (e.g., "example.com" or "192.168.1.1")`,
+    func: async (input) => {
+      try {
+        console.log(`Performing OSINT Nmap scan for: ${input}`);
+        const result = await osintMcpClient.invokeOsintTool('nmap_scan', { target: input.trim() });
+        
+        if (result.isError) {
+          return `OSINT Nmap scan failed: ${result.content[0]?.text || 'Unknown error'}`;
+        }
+        
+        return result.content[0]?.text || 'No Nmap scan data returned';
+      } catch (error) {
+        return `Error performing OSINT Nmap scan: ${error.message}`;
+      }
+    }
+  });
+
+  const dnsTwistTool = new DynamicTool({
+    name: 'DNSTwist',
+    description: `Performs domain name permutation analysis to find similar domains (typosquatting).
+Identifies potential malicious domains that could be used for:
+- Phishing attacks
+- Brand impersonation
+- Typosquatting
+- Domain squatting
+
+Usage: Provide the domain name (e.g., "example.com")`,
+    func: async (input) => {
+      try {
+        console.log(`Performing DNS Twist analysis for: ${input}`);
+        // DNSTwist expects 'domain' parameter instead of 'target'
+        const result = await osintMcpClient.invokeOsintTool('dnstwist_lookup', { domain: input.trim() });
+        
+        if (result.isError) {
+          return `DNS Twist analysis failed: ${result.content[0]?.text || 'Unknown error'}`;
+        }
+        
+        return result.content[0]?.text || 'No DNS Twist data returned';
+      } catch (error) {
+        return `Error performing DNS Twist analysis: ${error.message}`;
+      }
+    }
+  });
+
+  const osintOverviewTool = new DynamicTool({
+    name: 'OSINTOverview',
+    description: `Performs a comprehensive OSINT analysis combining multiple tools.
+This is the most comprehensive tool that runs:
+- WHOIS lookup
+- DNS reconnaissance  
+- Dig queries
+- Host lookup
+- Nmap port scan
+- DNS Twist analysis
+
+Perfect for getting a complete picture of a target domain. Use this when you need
+comprehensive intelligence gathering on a domain.
+
+Usage: Provide the domain name (e.g., "example.com")`,
+    func: async (input) => {
+      try {
+        console.log(`Performing comprehensive OSINT overview for: ${input}`);
+        const result = await osintMcpClient.invokeOsintTool('osint_overview', { target: input.trim() });
+        
+        if (result.isError) {
+          return `OSINT overview failed: ${result.content[0]?.text || 'Unknown error'}`;
+        }
+        
+        return result.content[0]?.text || 'No OSINT overview data returned';
+      } catch (error) {
+        return `Error performing OSINT overview: ${error.message}`;
+      }
+    }
+  });
+
+  return [nmapTool, whoisTool, dnsReconTool, digTool, hostTool, nmapScanTool, dnsTwistTool, osintOverviewTool];
 }
 
 // Initialize the agent with direct message override for capability queries
-async function initializeAgent(tools, callbacks) {
+async function initializeAgent(tools, callbacks, conversationHistory = []) {
   const llm = initializeLLM();
   
+  // Create a memory component for the agent to remember past interactions
   const agent = await initializeAgentExecutorWithOptions(
     tools,
     llm,
@@ -364,7 +579,9 @@ async function initializeAgent(tools, callbacks) {
       callbacks: callbacks,
       // Add enhanced system message
       agentArgs: {
-        systemMessage: getEnhancedSystemPrompt()
+        systemMessage: getEnhancedSystemPrompt(),
+        // Add memory/history support
+        memory: conversationHistory
       }
     }
   );
@@ -373,7 +590,7 @@ async function initializeAgent(tools, callbacks) {
 }
 
 // Process user command with special handling for capability queries
-async function processUserCommand(command, sessionId, sendEventToSocket) {
+async function processUserCommand(command, sessionId, sendEventToSocket, conversationHistory = []) {
   try {
     // Determine if this is a capability query to provide enhanced responses
     const isCapabilityQuery = command.toLowerCase().includes('what can you do') || 
@@ -387,7 +604,14 @@ async function processUserCommand(command, sessionId, sendEventToSocket) {
     
     // Initialize tools and agent
     const tools = await initializeTools();
-    const agent = await initializeAgent(tools, callbacks);
+    
+    // Convert conversation history to format expected by LangChain
+    const formattedHistory = conversationHistory.map(msg => ({
+      type: msg.role === 'user' ? 'human' : 'ai',
+      content: msg.content
+    }));
+    
+    const agent = await initializeAgent(tools, callbacks, formattedHistory);
     
     // For capability queries, provide direct detailed response from documentation
     if (isCapabilityQuery) {
@@ -417,6 +641,8 @@ async function processUserCommand(command, sessionId, sendEventToSocket) {
       ...(isCapabilityQuery && {
         context: "This query is about system capabilities. Provide a detailed, specific response based on the documentation."
       })
+    }, {
+      callbacks: callbacks  // Pass callbacks to the invoke call
     });
     
     return result.output;
@@ -442,66 +668,136 @@ function generateCapabilityResponse(query) {
       query.toLowerCase().includes('capabilities') ||
       query.toLowerCase().includes('help')) {
     
-    return `As the NetViz AI Agent, I can help you with network scanning and security analysis tasks. My capabilities include:
+    return `As the NetViz AI Agent, I can help you with network scanning, security analysis, and comprehensive OSINT (Open Source Intelligence) gathering. My capabilities include:
 
+## Network & Security Analysis:
 • Network scanning and enumeration of hosts, ports, and services
 • Service identification and version detection
 • OS detection and fingerprinting
 • Security vulnerability assessment
 • Intelligent analysis of scan results
-• Explanation of technical findings in plain language
 • Results visualization with summary, detailed views, and raw data access
 
-I can perform several types of scans:
+## OSINT (Open Source Intelligence) Capabilities:
+• **Domain Intelligence**: WHOIS lookups, DNS record enumeration, domain registration analysis
+• **Infrastructure Reconnaissance**: IP address mapping, name server identification, mail server discovery
+• **Brand Protection**: Typosquatting detection, domain variation analysis, phishing domain identification
+• **Comprehensive Analysis**: Multi-tool OSINT overview combining all available intelligence sources
 
-1. **Quick Scan**: Fast scan of common ports using optimized parameters (-T4 -F flags)
-2. **Service Scan**: Detailed scan that identifies running services on open ports (-sV flag)
-3. **Full Port Scan**: Comprehensive scan of all 65535 ports (takes longer but more thorough)
-4. **Vulnerability Scan**: Identifies potential security vulnerabilities on the target
+## Available Tools:
+1. **NmapScanner**: Advanced port scanning with custom parameters and timing options
+2. **WhoisLookup**: Domain registration information and ownership details
+3. **DNSRecon**: Comprehensive DNS reconnaissance and record enumeration
+4. **DigLookup**: Standard DNS queries for quick IP resolution
+5. **HostLookup**: Simple hostname to IP address mapping
+6. **OSINTNmapScan**: Predefined port scanning via OSINT infrastructure
+7. **DNSTwist**: Domain permutation analysis for typosquatting detection
+8. **OSINTOverview**: Complete OSINT analysis combining all tools
 
-You can interact with me using natural language commands like:
+## Scan Types:
+• **Quick Scan**: Fast scan of common ports (-T4 -F flags)
+• **Service Scan**: Detailed scan with service version detection (-sV flag)
+• **Full Port Scan**: Comprehensive scan of all 65535 ports
+• **Vulnerability Scan**: Security vulnerability assessment
+• **OSINT Analysis**: Comprehensive intelligence gathering on domains/IPs
+
+## Example Commands:
 • "scan example.com for open ports"
-• "run a quick scan on 192.168.1.1"
-• "check if port 443 is open on example.com"
-• "scan for services on 10.0.0.1"
+• "perform OSINT analysis on example.com"
+• "check WHOIS information for example.com"
+• "look for typosquatting domains similar to example.com"
+• "run a comprehensive analysis on example.com"
 
-What type of scan would you like to perform today?`;
+What type of analysis would you like to perform today?`;
   }
   
   if (query.toLowerCase().includes('scan types') || 
       query.toLowerCase().includes('what type of scan') ||
       query.toLowerCase().includes('what kind of scan')) {
     
-    return `I can perform several types of network scans:
+    return `I can perform several types of network and OSINT analysis:
 
+## Network Scanning:
 1. **Quick Scan**
    • Description: Fast scan of common ports using optimized parameters
    • Technical Details: Uses Nmap with -T4 -F flags
    • Best For: Initial reconnaissance or when time is limited
-   • Example Command: "run a quick scan on example.com"
-   • Expected Output: A list of the most commonly open ports (like 80, 443, 22)
+   • Example: "run a quick scan on example.com"
 
 2. **Service Scan**
    • Description: Detailed scan that identifies running services on open ports
    • Technical Details: Uses Nmap with -sV flag
    • Best For: Understanding what services are running on a target
-   • Example Command: "scan for services on 192.168.1.1"
-   • Expected Output: Port numbers, states, and service identification with versions
+   • Example: "scan for services on 192.168.1.1"
 
 3. **Full Port Scan**
    • Description: Comprehensive scan of all 65535 ports
    • Technical Details: Scans the entire port range for complete coverage
    • Best For: Thorough security audits and comprehensive analysis
-   • Example Command: "run a comprehensive port scan on example.com"
-   • Note: Takes significantly longer than a Quick Scan
+   • Example: "run a comprehensive port scan on example.com"
 
 4. **Vulnerability Scan**
    • Description: Identifies potential security vulnerabilities on the target
    • Technical Details: Combines service detection with vulnerability assessment
    • Best For: Security audits and penetration testing preparations
-   • Example Command: "check for vulnerabilities on example.com"
+   • Example: "check for vulnerabilities on example.com"
 
-Which type of scan would you like to run?`;
+## OSINT Analysis:
+5. **WHOIS Analysis**
+   • Description: Domain registration and ownership information
+   • Best For: Understanding domain ownership, registration dates, contact info
+   • Example: "get WHOIS information for example.com"
+
+6. **DNS Reconnaissance**
+   • Description: Comprehensive DNS record enumeration and analysis
+   • Best For: Understanding DNS infrastructure, subdomains, mail servers
+   • Example: "perform DNS reconnaissance on example.com"
+
+7. **Typosquatting Analysis**
+   • Description: Finds domains similar to target that could be used maliciously
+   • Best For: Brand protection, phishing detection
+   • Example: "check for typosquatting domains similar to example.com"
+
+8. **Comprehensive OSINT**
+   • Description: Complete intelligence gathering using all available tools
+   • Best For: Getting a complete picture of a target's online presence
+   • Example: "perform comprehensive OSINT analysis on example.com"
+
+Which type of analysis would you like to run?`;
+  }
+
+  if (query.toLowerCase().includes('osint') || 
+      query.toLowerCase().includes('intelligence') ||
+      query.toLowerCase().includes('reconnaissance')) {
+    
+    return `I specialize in OSINT (Open Source Intelligence) gathering with comprehensive capabilities:
+
+## OSINT Tools Available:
+• **WhoisLookup**: Domain registration information, ownership details, registration dates
+• **DNSRecon**: Comprehensive DNS enumeration, record analysis, DNSSEC information
+• **DigLookup**: Quick DNS queries for IP resolution and basic records
+• **HostLookup**: Hostname to IP mapping, mail server identification
+• **DNSTwist**: Domain permutation analysis for typosquatting detection
+• **OSINTOverview**: Complete multi-tool analysis combining all OSINT capabilities
+
+## Intelligence Categories:
+1. **Domain Intelligence**: Registration info, ownership, historical data
+2. **Infrastructure Intelligence**: IP addresses, hosting providers, CDNs
+3. **DNS Intelligence**: Subdomains, mail servers, DNS configuration
+4. **Security Intelligence**: Open ports, services, potential vulnerabilities
+5. **Brand Protection**: Typosquatting, similar domains, potential phishing sites
+
+## Use Cases:
+• Security assessments and penetration testing preparation
+• Brand monitoring and protection
+• Threat intelligence gathering
+• Due diligence on business partners or targets
+• Infrastructure reconnaissance
+• Phishing and fraud investigation
+
+Example: "perform comprehensive OSINT analysis on example.com" will run all tools and provide a complete intelligence picture.
+
+What type of intelligence gathering do you need?`;
   }
   
   // If no specific match, return null to use the normal agent flow
