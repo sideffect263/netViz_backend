@@ -26,10 +26,11 @@ exports.register = async (req, res) => {
 
     sendTokenResponse(user, 201, res);
   } catch (err) {
-    console.error(err);
+    console.error('Registration error:', err);
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? err.message : undefined
     });
   }
 };
@@ -69,10 +70,11 @@ exports.login = async (req, res) => {
 
     sendTokenResponse(user, 200, res);
   } catch (err) {
-    console.error(err);
+    console.error('Login error:', err);
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? err.message : undefined
     });
   }
 };
@@ -89,42 +91,52 @@ exports.getMe = async (req, res) => {
       data: user
     });
   } catch (err) {
-    console.error(err);
+    console.error('GetMe error:', err);
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? err.message : undefined
     });
   }
 };
 
 // Helper function to send token response
 const sendTokenResponse = (user, statusCode, res) => {
-  // Create token
-  const token = user.getSignedJwtToken();
+  try {
+    // Create token
+    const token = user.getSignedJwtToken();
 
-  const options = {
-    expires: new Date(
-      Date.now() + (process.env.JWT_COOKIE_EXPIRE || 30) * 24 * 60 * 60 * 1000
-    ),
-    httpOnly: true
-  };
+    const options = {
+      expires: new Date(
+        Date.now() + (process.env.JWT_COOKIE_EXPIRE || 30) * 24 * 60 * 60 * 1000
+      ),
+      httpOnly: true
+    };
 
-  // Set secure flag in production
-  if (process.env.NODE_ENV === 'production') {
-    options.secure = true;
-  }
+    // Set secure flag in production
+    if (process.env.NODE_ENV === 'production') {
+      options.secure = true;
+    }
 
-  res
-    .status(statusCode)
-    .cookie('token', token, options)
-    .json({
-      success: true,
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role
-      }
+    res
+      .status(statusCode)
+      .cookie('token', token, options)
+      .json({
+        success: true,
+        token,
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role
+        }
+      });
+  } catch (err) {
+    console.error('Token response error:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? err.message : undefined
     });
+  }
 }; 
