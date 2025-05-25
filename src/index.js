@@ -36,9 +36,12 @@ const PORT = process.env.PORT || 5000;
 const server = http.createServer(app);
 
 // Middleware
+// Determine the allowed origin: use environment variable or default to the known frontend URL
+const allowedOrigin = process.env.CORS_ORIGIN || 'https://netscan.ofektechnology.com';
+
 app.use(cors({
   // Configure CORS properly
-  origin: process.env.CORS_ORIGIN || '*',
+  origin: allowedOrigin,
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true // Allow cookies to be sent
