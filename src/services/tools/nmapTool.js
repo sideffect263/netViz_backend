@@ -26,39 +26,76 @@ function parseNmapInput(input) {
 
   const inputStr = input.trim();
   
-  // Pattern to match: flags followed by target (common pattern in Nmap commands)
-  // This handles both:
-  // 1. "-T4 -F example.com" (flags then target)
-  // 2. "example.com -T4 -F" (target then flags)
-  const words = inputStr.split(' ');
+  // Split input into words
+  const words = inputStr.split(/\s+/).filter(word => word.trim() !== '');
   
-  // Find which parts are flags (starting with -) and which is the target
-  const flags = [];
+  if (words.length === 0) {
+    throw new Error("Empty input provided to NmapScanner.");
+  }
+  
   let target = '';
+  const flags = [];
   
-  for (const word of words) {
+  // More robust parsing logic
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i];
+    
     if (word.startsWith('-')) {
+      // This is a flag
       flags.push(word);
-    } else if (!target && !word.startsWith('-')) {
-      target = word;
-    } else if (target) {
-      // If we already have a target and this isn't a flag, append it
-      // (handles cases where target might have spaces)
-      target += ` ${word}`;
+      
+      // Check if this flag expects a parameter (like -p 80 or -T 4)
+      const flagsWithParams = ['-p', '-T', '--top-ports', '--exclude-ports'];
+      if (flagsWithParams.includes(word) && i + 1 < words.length) {
+        // Add the next word as part of this flag
+        i++; // Skip the next word in main loop
+        flags.push(words[i]);
+      }
+    } else {
+      // This might be a target
+      // Check if it looks like a domain or IP address
+      const isDomain = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$/.test(word);
+      const isIP = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(word);
+      const isCIDR = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\/[0-9]{1,2}$/.test(word);
+      
+      if ((isDomain || isIP || isCIDR) && !target) {
+        target = word;
+      } else if (!target) {
+        // If we haven't found a target yet and this doesn't look like a flag,
+        // assume it's a target (could be a hostname that doesn't match our regex)
+        target = word;
+      } else {
+        // We already have a target, so this might be additional flags or parameters
+        // If it's a standalone number, it might be a port parameter for a previous flag
+        if (/^\d+$/.test(word) && flags.length > 0) {
+          // Check if the last flag was -p or similar that expects a port
+          const lastFlag = flags[flags.length - 1];
+          if (lastFlag === '-p' || lastFlag === '--port') {
+            flags.push(word);
+          } else {
+            // Standalone number not associated with a flag - might be an error
+            console.warn(`Unexpected number '${word}' in input, ignoring.`);
+          }
+        } else {
+          // Other unexpected input, treat as additional flag
+          flags.push(word);
+        }
+      }
     }
   }
   
-  // If we didn't find a target, use the last word as target
-  if (!target && words.length > 0) {
-    target = words[words.length - 1];
-    // Remove it from flags if it was mistakenly added
-    const targetIndex = flags.indexOf(target);
-    if (targetIndex !== -1) {
-      flags.splice(targetIndex, 1);
-    }
+  // Validation
+  if (!target) {
+    throw new Error("No target found in input. Please provide a domain or IP address.");
   }
   
-  // Join flags back together
+  // Final validation of target format
+  const targetValidation = /^[a-zA-Z0-9.-\/]+$/;
+  if (!targetValidation.test(target)) {
+    throw new Error(`Invalid target format: '${target}'. Target should only contain letters, numbers, dots, hyphens, and forward slashes.`);
+  }
+  
+  // Join flags back together, ensuring proper spacing
   const flagsStr = flags.join(' ');
   
   console.log(`Parsed Nmap input: target="${target}", flags="${flagsStr}"`);

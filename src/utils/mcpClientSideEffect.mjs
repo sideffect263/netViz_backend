@@ -169,8 +169,20 @@ async function invokeNmapScan(params) {
     console.log("[invokeNmapScan] Direct Client was already ready. Proceeding.");
   }
 
-  // Start with the original flags
-  let currentFlags = params.nmap_args.join(' ');
+  // Validate and sanitize target
+  const target = params.target.trim();
+  if (!target) {
+    throw new Error("Target cannot be empty");
+  }
+
+  // Ensure target doesn't contain invalid characters that could confuse the server
+  const targetValidation = /^[a-zA-Z0-9.-]+$/;
+  if (!targetValidation.test(target)) {
+    throw new Error(`Invalid target format: ${target}. Use domain names or IP addresses only.`);
+  }
+
+  // Start with the original flags, ensuring they're properly formatted
+  let currentFlags = params.nmap_args.filter(flag => flag && flag.trim() !== '').join(' ').trim();
   let simplificationLevel = 0;
   let maxRetries = 2; // Maximum number of retries with simplified parameters
   
@@ -178,12 +190,19 @@ async function invokeNmapScan(params) {
   let partialResult = null;
 
   while (simplificationLevel <= maxRetries) {
+    // Ensure the flags don't accidentally contain the target
+    if (currentFlags.includes(target)) {
+      currentFlags = currentFlags.replace(new RegExp(target, 'g'), '').trim();
+    }
+
+    // Create the tool input with proper validation
     const toolInput = {
-      target: params.target,
-      flags: currentFlags
+      target: target,
+      flags: currentFlags || ''  // Ensure flags is never undefined
     };
     
-    console.log(`Invoking Nmap tool "${nmapScanTool.name}" on Direct server with params (simplification level ${simplificationLevel}):`, toolInput);
+    console.log(`Invoking Nmap tool "${nmapScanTool.name}" on Direct server with params (simplification level ${simplificationLevel}):`, 
+      JSON.stringify(toolInput, null, 2));
 
     try {
       const result = await clientInstance.callTool({
@@ -199,6 +218,11 @@ async function invokeNmapScan(params) {
     } catch (error) {
       console.error(`Error invoking Direct Nmap 'nmapScan' tool for target ${params.target} (simplification level ${simplificationLevel}):`, error);
       
+      // Check for specific validation errors
+      const isValidationError = error.message.includes('Invalid target format') ||
+                               error.message.includes('validation') ||
+                               error.message.includes('format');
+      
       // Check if it's a timeout error
       const isTimeout = error.message.toLowerCase().includes('timeout') || 
                        (error.code && error.code === -32001);
@@ -207,6 +231,30 @@ async function invokeNmapScan(params) {
       const isConnectionIssue = error.message.toLowerCase().includes("client is not connected") ||
                               error.message.toLowerCase().includes("transport closed") ||
                               error.message.toLowerCase().includes("disconnected");
+      
+      // Handle validation errors immediately - don't retry
+      if (isValidationError) {
+        console.error(`Validation error from server: ${error.message}`);
+        
+        // Try to provide a helpful error message
+        let helpfulError = `Scan of ${target} failed due to server validation: ${error.message}`;
+        
+        if (error.message.includes('Invalid target format')) {
+          helpfulError += `\n\nTips for fixing this:
+• Ensure target is a valid domain or IP address
+• Remove any extra spaces or special characters
+• Try using just the hostname without additional parameters`;
+        }
+        
+        const errorResult = {
+          content: [{
+            type: 'text',
+            text: helpfulError
+          }]
+        };
+        
+        return errorResult;
+      }
       
       if (isConnectionIssue) {
         console.log("Direct Client disconnected, attempting to reconnect for 'nmapScan'...");
@@ -248,10 +296,11 @@ async function invokeNmapScan(params) {
         return partialResult;
       }
       
-      // If we have no partial results, create a basic result
+      // If we have no partial results, create a basic result with the actual error
       const errorResult = {
         content: [{
-          text: `Scan of ${params.target} failed after ${simplificationLevel} retry attempts: ${error.message}. You may want to try a less intensive scan.`
+          type: 'text',
+          text: `Scan of ${params.target} failed after ${simplificationLevel} retry attempts: ${error.message}. You may want to try a less intensive scan or check the target format.`
         }]
       };
       

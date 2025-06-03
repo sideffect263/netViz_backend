@@ -1,0 +1,89 @@
+{
+  "targets": {
+    "46.137.15.86": {
+      "target": "46.137.15.86",
+      "type": "ip",
+      "status": "analyzed",
+      "firstSeen": "2025-06-03T20:08:41.043Z",
+      "lastActivity": "2025-06-03T20:08:41.043Z",
+      "services": [],
+      "vulnerabilities": [],
+      "exploitAttempts": [],
+      "riskScore": 0,
+      "phase": "enumeration",
+      "sessions": {},
+      "intelligence": {
+        "organization": null,
+        "geolocation": null,
+        "technologies": [],
+        "certificates": []
+      },
+      "metadata": {
+        "created": 1748981321042,
+        "updated": 1748981321042
+      },
+      "lastScanData": "Nmap Scan Results for 46.137.15.86\n\nScan started: Tue Jun  3 20:08:31 2025\n\nHost: 46.137.15.86 (ec2-46-137-15-86.eu-west-1.compute.amazonaws.com)\nStatus: up\nOpen ports:\n  80/tcp - http\n  443/tcp - https\n\nScan completed: Tue Jun  3 20:08:32 2025\n\nFull XML Output:\n{\n  \"nmaprun\": {\n    \"scanner\": \"nmap\",\n    \"args\": \"/usr/bin/nmap --datadir /usr/share/nmap -oX - -T4 -F 46.137.15.86\",\n    \"start\": \"1748981311\",\n    \"startstr\": \"Tue Jun  3 20:08:31 2025\",\n    \"version\": \"7.95\",\n    \"xmloutputversion\": \"1.05\",\n    \"scaninfo\": {\n      \"type\": \"syn\",\n      \"protocol\": \"tcp\",\n      \"numservices\": \"100\",\n      \"services\": \"7,9,13,21-23,25-26,37,53,79-81,88,106,110-111,113,119,135,139,143-144,179,199,389,427,443-445,465,513-515,543-544,548,554,587,631,646,873,990,993,995,1025-1029,1110,1433,1720,1723,1755,1900,2000-2001,2049,2121,2717,3000,3128,3306,3389,3986,4899,5000,5009,5051,5060,5101,5190,5357,5432,5631,5666,5800,5900,6000-6001,6646,7070,8000,8008-8009,8080-8081,8443,8888,9100,9999-10000,32768,49152-49157\"\n    },\n    \"verbose\": {\n      \"level\": \"0\"\n    },\n    \"debugging\": {\n      \"level\": \"0\"\n    },\n    \"hosthint\": {\n      \"status\": {\n        \"state\": \"up\",\n        \"reason\": \"unknown-response\",\n        \"reason_ttl\": \"0\"\n      },\n      \"address\": {\n        \"addr\": \"46.137.15.86\",\n        \"addrtype\": \"ipv4\"\n      },\n      \"hostnames\": \"\\n\"\n    },\n    \"host\": {\n      \"starttime\": \"1748981311\",\n      \"endtime\": \"1748981312\",\n      \"status\": {\n        \"state\": \"up\",\n        \"reason\": \"syn-ack\",\n        \"reason_ttl\": \"246\"\n      },\n      \"address\": {\n        \"addr\": \"46.137.15.86\",\n        \"addrtype\": \"ipv4\"\n      },\n      \"hostnames\": {\n        \"hostname\": {\n          \"name\": \"ec2-46-137-15-86.eu-west-1.compute.amazonaws.com\",\n          \"type\": \"PTR\"\n        }\n      },\n      \"ports\": {\n        \"extraports\": {\n          \"state\": \"filtered\",\n          \"count\": \"98\",\n          \"extrareasons\": {\n            \"reason\": \"no-response\",\n            \"count\": \"98\",\n            \"proto\": \"tcp\",\n            \"ports\": \"7,9,13,21-23,25-26,37,53,79,81,88,106,110-111,113,119,135,139,143-144,179,199,389,427,444-445,465,513-515,543-544,548,554,587,631,646,873,990,993,995,1025-1029,1110,1433,1720,1723,1755,1900,2000-2001,2049,2121,2717,3000,3128,3306,3389,3986,4899,5000,5009,5051,5060,5101,5190,5357,5432,5631,5666,5800,5900,6000-6001,6646,7070,8000,8008-8009,8080-8081,8443,8888,9100,9999-10000,32768,49152-49157\"\n          }\n        },\n        \"port\": [\n          {\n            \"protocol\": \"tcp\",\n            \"portid\": \"80\",\n            \"state\": {\n              \"state\": \"open\",\n              \"reason\": \"syn-ack\",\n              \"reason_ttl\": \"55\"\n            },\n            \"service\": {\n              \"name\": \"http\",\n              \"method\": \"table\",\n              \"conf\": \"3\"\n            }\n          },\n          {\n            \"protocol\": \"tcp\",\n            \"portid\": \"443\",\n            \"state\": {\n              \"state\": \"open\",\n              \"reason\": \"syn-ack\",\n              \"reason_ttl\": \"246\"\n            },\n            \"service\": {\n              \"name\": \"https\",\n              \"method\": \"table\",\n              \"conf\": \"3\"\n            }\n          }\n        ]\n      },\n      \"times\": {\n        \"srtt\": \"19583\",\n        \"rttvar\": \"8916\",\n        \"to\": \"100000\"\n      }\n    },\n    \"runstats\": {\n      \"finished\": {\n        \"time\": \"1748981312\",\n        \"timestr\": \"Tue Jun  3 20:08:32 2025\",\n        \"summary\": \"Nmap done at Tue Jun  3 20:08:32 2025; 1 IP address (1 host up) scanned in 1.83 seconds\",\n        \"elapsed\": \"1.83\",\n        \"exit\": \"success\"\n      },\n      \"hosts\": {\n        \"up\": \"1\",\n        \"down\": \"0\",\n        \"total\": \"1\"\n      }\n    }\n  }\n}",
+      "lastScanTime": "2025-06-03T20:08:41.042Z"
+    },
+    "45.33.32.156": {
+      "target": "45.33.32.156",
+      "type": "ip",
+      "status": "analyzed",
+      "firstSeen": "2025-06-03T20:12:53.968Z",
+      "lastActivity": "2025-06-03T20:12:53.968Z",
+      "services": [],
+      "vulnerabilities": [],
+      "exploitAttempts": [],
+      "riskScore": 0,
+      "phase": "enumeration",
+      "sessions": {},
+      "intelligence": {
+        "organization": null,
+        "geolocation": null,
+        "technologies": [],
+        "certificates": []
+      },
+      "metadata": {
+        "created": 1748981573968,
+        "updated": 1748981573968
+      },
+      "lastScanData": "Nmap Scan Results for 45.33.32.156\n\nScan started: Tue Jun  3 20:12:40 2025\n\nHost: 45.33.32.156 (scanme.nmap.org)\nStatus: up\nOpen ports:\n  22/tcp - ssh\n  80/tcp - http\n\nScan completed: Tue Jun  3 20:12:41 2025\n\nFull XML Output:\n{\n  \"nmaprun\": {\n    \"scanner\": \"nmap\",\n    \"args\": \"/usr/bin/nmap --datadir /usr/share/nmap -oX - -T4 -F 45.33.32.156\",\n    \"start\": \"1748981560\",\n    \"startstr\": \"Tue Jun  3 20:12:40 2025\",\n    \"version\": \"7.95\",\n    \"xmloutputversion\": \"1.05\",\n    \"scaninfo\": {\n      \"type\": \"syn\",\n      \"protocol\": \"tcp\",\n      \"numservices\": \"100\",\n      \"services\": \"7,9,13,21-23,25-26,37,53,79-81,88,106,110-111,113,119,135,139,143-144,179,199,389,427,443-445,465,513-515,543-544,548,554,587,631,646,873,990,993,995,1025-1029,1110,1433,1720,1723,1755,1900,2000-2001,2049,2121,2717,3000,3128,3306,3389,3986,4899,5000,5009,5051,5060,5101,5190,5357,5432,5631,5666,5800,5900,6000-6001,6646,7070,8000,8008-8009,8080-8081,8443,8888,9100,9999-10000,32768,49152-49157\"\n    },\n    \"verbose\": {\n      \"level\": \"0\"\n    },\n    \"debugging\": {\n      \"level\": \"0\"\n    },\n    \"hosthint\": {\n      \"status\": {\n        \"state\": \"up\",\n        \"reason\": \"unknown-response\",\n        \"reason_ttl\": \"0\"\n      },\n      \"address\": {\n        \"addr\": \"45.33.32.156\",\n        \"addrtype\": \"ipv4\"\n      },\n      \"hostnames\": \"\\n\"\n    },\n    \"host\": {\n      \"starttime\": \"1748981560\",\n      \"endtime\": \"1748981561\",\n      \"status\": {\n        \"state\": \"up\",\n        \"reason\": \"reset\",\n        \"reason_ttl\": \"52\"\n      },\n      \"address\": {\n        \"addr\": \"45.33.32.156\",\n        \"addrtype\": \"ipv4\"\n      },\n      \"hostnames\": {\n        \"hostname\": {\n          \"name\": \"scanme.nmap.org\",\n          \"type\": \"PTR\"\n        }\n      },\n      \"ports\": {\n        \"extraports\": {\n          \"state\": \"closed\",\n          \"count\": \"95\",\n          \"extrareasons\": {\n            \"reason\": \"reset\",\n            \"count\": \"95\",\n            \"proto\": \"tcp\",\n            \"ports\": \"7,9,13,21,23,26,37,53,79,81,88,106,110-111,113,119,135,139,143-144,179,199,389,427,443-445,513-515,543-544,548,554,631,646,873,990,993,995,1025-1029,1110,1433,1720,1723,1755,1900,2000-2001,2049,2121,2717,3000,3128,3306,3389,3986,4899,5000,5009,5051,5060,5101,5190,5357,5432,5631,5666,5800,5900,6000-6001,6646,7070,8000,8008-8009,8080-8081,8443,8888,9100,9999-10000,32768,49152-49157\"\n          }\n        },\n        \"port\": [\n          {\n            \"protocol\": \"tcp\",\n            \"portid\": \"22\",\n            \"state\": {\n              \"state\": \"open\",\n              \"reason\": \"syn-ack\",\n              \"reason_ttl\": \"46\"\n            },\n            \"service\": {\n              \"name\": \"ssh\",\n              \"method\": \"table\",\n              \"conf\": \"3\"\n            }\n          },\n          {\n            \"protocol\": \"tcp\",\n            \"portid\": \"25\",\n            \"state\": {\n              \"state\": \"filtered\",\n              \"reason\": \"no-response\",\n              \"reason_ttl\": \"0\"\n            },\n            \"service\": {\n              \"name\": \"smtp\",\n              \"method\": \"table\",\n              \"conf\": \"3\"\n            }\n          },\n          {\n            \"protocol\": \"tcp\",\n            \"portid\": \"80\",\n            \"state\": {\n              \"state\": \"open\",\n              \"reason\": \"syn-ack\",\n              \"reason_ttl\": \"52\"\n            },\n            \"service\": {\n              \"name\": \"http\",\n              \"method\": \"table\",\n              \"conf\": \"3\"\n            }\n          },\n          {\n            \"protocol\": \"tcp\",\n            \"portid\": \"465\",\n            \"state\": {\n              \"state\": \"filtered\",\n              \"reason\": \"no-response\",\n              \"reason_ttl\": \"0\"\n            },\n            \"service\": {\n              \"name\": \"smtps\",\n              \"method\": \"table\",\n              \"conf\": \"3\"\n            }\n          },\n          {\n            \"protocol\": \"tcp\",\n            \"portid\": \"587\",\n            \"state\": {\n              \"state\": \"filtered\",\n              \"reason\": \"no-response\",\n              \"reason_ttl\": \"0\"\n            },\n            \"service\": {\n              \"name\": \"submission\",\n              \"method\": \"table\",\n              \"conf\": \"3\"\n            }\n          }\n        ]\n      },\n      \"times\": {\n        \"srtt\": \"156184\",\n        \"rttvar\": \"3234\",\n        \"to\": \"169120\"\n      }\n    },\n    \"runstats\": {\n      \"finished\": {\n        \"time\": \"1748981561\",\n        \"timestr\": \"Tue Jun  3 20:12:41 2025\",\n        \"summary\": \"Nmap done at Tue Jun  3 20:12:41 2025; 1 IP address (1 host up) scanned in 1.80 seconds\",\n        \"elapsed\": \"1.80\",\n        \"exit\": \"success\"\n      },\n      \"hosts\": {\n        \"up\": \"1\",\n        \"down\": \"0\",\n        \"total\": \"1\"\n      }\n    }\n  }\n}",
+      "lastScanTime": "2025-06-03T20:12:53.968Z"
+    },
+    "65.61.137.117": {
+      "target": "65.61.137.117",
+      "type": "ip",
+      "status": "analyzed",
+      "firstSeen": "2025-06-03T20:25:39.568Z",
+      "lastActivity": "2025-06-03T20:25:39.572Z",
+      "services": [],
+      "vulnerabilities": [],
+      "exploitAttempts": [
+        {
+          "timestamp": "2025-06-03T20:25:39.572Z",
+          "type": "exploit",
+          "description": "do a complete pentest on 65.61.137.117...",
+          "status": "attempted",
+          "tool": "custom",
+          "sessionId": "2moy9uy9chvx8lcxx0fp3e"
+        }
+      ],
+      "riskScore": 10,
+      "phase": "exploitation",
+      "sessions": {},
+      "intelligence": {
+        "organization": null,
+        "geolocation": null,
+        "technologies": [],
+        "certificates": []
+      },
+      "metadata": {
+        "created": 1748982339568,
+        "updated": 1748982339572
+      },
+      "lastScanData": "Nmap Scan Results for 65.61.137.117\n\nScan started: Tue Jun  3 20:25:07 2025\n\nHost: 65.61.137.117\nStatus: up\nOpen ports:\n  80/tcp - http\n  443/tcp - https\n\nScan completed: Tue Jun  3 20:25:31 2025\n\nFull XML Output:\n{\n  \"nmaprun\": {\n    \"scanner\": \"nmap\",\n    \"args\": \"/usr/bin/nmap --datadir /usr/share/nmap -oX - -sV -p 1-1000 -T4 65.61.137.117\",\n    \"start\": \"1748982307\",\n    \"startstr\": \"Tue Jun  3 20:25:07 2025\",\n    \"version\": \"7.95\",\n    \"xmloutputversion\": \"1.05\",\n    \"scaninfo\": {\n      \"type\": \"syn\",\n      \"protocol\": \"tcp\",\n      \"numservices\": \"1000\",\n      \"services\": \"1-1000\"\n    },\n    \"verbose\": {\n      \"level\": \"0\"\n    },\n    \"debugging\": {\n      \"level\": \"0\"\n    },\n    \"hosthint\": {\n      \"status\": {\n        \"state\": \"up\",\n        \"reason\": \"unknown-response\",\n        \"reason_ttl\": \"0\"\n      },\n      \"address\": {\n        \"addr\": \"65.61.137.117\",\n        \"addrtype\": \"ipv4\"\n      },\n      \"hostnames\": \"\\n\"\n    },\n    \"host\": {\n      \"starttime\": \"1748982308\",\n      \"endtime\": \"1748982331\",\n      \"status\": {\n        \"state\": \"up\",\n        \"reason\": \"echo-reply\",\n        \"reason_ttl\": \"109\"\n      },\n      \"address\": {\n        \"addr\": \"65.61.137.117\",\n        \"addrtype\": \"ipv4\"\n      },\n      \"hostnames\": \"\\n\",\n      \"ports\": {\n        \"extraports\": {\n          \"state\": \"filtered\",\n          \"count\": \"998\",\n          \"extrareasons\": {\n            \"reason\": \"no-response\",\n            \"count\": \"998\",\n            \"proto\": \"tcp\",\n            \"ports\": \"1-79,81-442,444-1000\"\n          }\n        },\n        \"port\": [\n          {\n            \"protocol\": \"tcp\",\n            \"portid\": \"80\",\n            \"state\": {\n              \"state\": \"open\",\n              \"reason\": \"syn-ack\",\n              \"reason_ttl\": \"105\"\n            },\n            \"service\": {\n              \"name\": \"http\",\n              \"product\": \"Apache Tomcat/Coyote JSP engine\",\n              \"version\": \"1.1\",\n              \"method\": \"probed\",\n              \"conf\": \"10\",\n              \"cpe\": \"cpe:/a:apache:coyote_http_connector:1.1\"\n            }\n          },\n          {\n            \"protocol\": \"tcp\",\n            \"portid\": \"443\",\n            \"state\": {\n              \"state\": \"open\",\n              \"reason\": \"syn-ack\",\n              \"reason_ttl\": \"105\"\n            },\n            \"service\": {\n              \"name\": \"https\",\n              \"tunnel\": \"ssl\",\n              \"method\": \"table\",\n              \"conf\": \"3\"\n            }\n          }\n        ]\n      },\n      \"times\": {\n        \"srtt\": \"113351\",\n        \"rttvar\": \"18170\",\n        \"to\": \"186031\"\n      }\n    },\n    \"runstats\": {\n      \"finished\": {\n        \"time\": \"1748982331\",\n        \"timestr\": \"Tue Jun  3 20:25:31 2025\",\n        \"summary\": \"Nmap done at Tue Jun  3 20:25:31 2025; 1 IP address (1 host up) scanned in 23.96 seconds\",\n        \"elapsed\": \"23.96\",\n        \"exit\": \"success\"\n      },\n      \"hosts\": {\n        \"up\": \"1\",\n        \"down\": \"0\",\n        \"total\": \"1\"\n      }\n    }\n  }\n}",
+      "lastScanTime": "2025-06-03T20:25:39.568Z"
+    }
+  },
+  "lastUpdated": "2025-06-03T20:25:39.573Z"
+}

@@ -238,10 +238,52 @@ class ToolOrchestrator {
   
   // Create orchestrated tools that can be used by the agent
   createOrchestratedTools() {
-    const orchestratedTools = [];
+    const tools = [];
     
-    // Comprehensive Domain Analysis Tool
-    orchestratedTools.push(new DynamicTool({
+    // Create combined overview tool
+    const overviewTool = this.createOverviewTool();
+    if (overviewTool) {
+      tools.push(overviewTool);
+    }
+    
+    // Create vulnerability assessment tool
+    const vulnAssessmentTool = this.createVulnerabilityAssessmentTool();
+    if (vulnAssessmentTool) {
+      tools.push(vulnAssessmentTool);
+    }
+    
+    // Create quick reconnaissance tool
+    const quickReconTool = this.createQuickReconnaissanceTool();
+    if (quickReconTool) {
+      tools.push(quickReconTool);
+    }
+    
+    return tools;
+  }
+  
+  /**
+   * Get a tool by name from the tools map
+   * @param {string} name - The tool name
+   * @returns {Object|null} The tool object or null if not found
+   */
+  getToolByName(name) {
+    return this.tools.get(name) || null;
+  }
+  
+  /**
+   * Create the overview tool (formerly ComprehensiveDomainAnalysis)
+   * @returns {DynamicTool|null} The overview tool or null if dependencies are missing
+   */
+  createOverviewTool() {
+    const requiredTools = ['WhoisLookup', 'DNSRecon'];
+    const missingTools = requiredTools.filter(name => !this.tools.has(name));
+    
+    if (missingTools.length > 0) {
+      console.log(`Skipping overview tool - missing dependencies: ${missingTools.join(', ')}`);
+      return null;
+    }
+    
+    return new DynamicTool({
       name: 'ComprehensiveDomainAnalysis',
       description: `Performs complete domain intelligence gathering using multiple tools in optimal sequence.
 This tool automatically:
@@ -260,31 +302,15 @@ Usage: Provide just the domain name (e.g., "example.com")`,
           return `Error in comprehensive domain analysis: ${error.message}`;
         }
       }
-    }));
-    
-    // Security Assessment Tool
-    orchestratedTools.push(new DynamicTool({
-      name: 'SecurityAssessment',
-      description: `Performs comprehensive security assessment combining OSINT and active scanning.
-This tool automatically:
-1. Runs complete OSINT overview
-2. Performs detailed port scan with service detection
-3. Checks for brand protection issues if domain target
-
-Perfect for security audits and penetration testing preparation.
-Usage: Provide domain name or IP address (e.g., "example.com" or "192.168.1.1")`,
-      func: async (input) => {
-        try {
-          const result = await this.executeWorkflow('security_assessment', input.trim());
-          return this.formatWorkflowResult(result);
-        } catch (error) {
-          return `Error in security assessment: ${error.message}`;
-        }
-      }
-    }));
-    
-    // Quick Reconnaissance Tool
-    orchestratedTools.push(new DynamicTool({
+    });
+  }
+  
+  /**
+   * Create the quick reconnaissance tool
+   * @returns {DynamicTool} The quick reconnaissance tool
+   */
+  createQuickReconnaissanceTool() {
+    return new DynamicTool({
       name: 'QuickReconnaissance',
       description: `Performs fast initial reconnaissance for time-sensitive analysis.
 This tool automatically:
@@ -302,9 +328,147 @@ Usage: Provide domain name or IP address (e.g., "example.com" or "192.168.1.1")`
           return `Error in quick reconnaissance: ${error.message}`;
         }
       }
-    }));
+    });
+  }
+  
+  /**
+   * Create a vulnerability assessment tool that combines scanning with exploit research
+   * @returns {DynamicTool|null} The vulnerability assessment tool or null if dependencies are missing
+   */
+  createVulnerabilityAssessmentTool() {
+    const nmapTool = this.getToolByName('NmapScanner');
+    const exploitSearchTool = this.getToolByName('MetasploitExploitSearch');
     
-    return orchestratedTools;
+    if (!nmapTool || !exploitSearchTool) {
+      console.log('Skipping vulnerability assessment tool - missing dependencies');
+      return null;
+    }
+    
+    return new DynamicTool({
+      name: 'VulnerabilityAssessment',
+      description: `Performs comprehensive vulnerability assessment by:
+1. Scanning target for open ports and services
+2. Identifying service versions
+3. Searching for known exploits for discovered services
+This tool combines network scanning with exploit intelligence to provide a complete security picture.
+
+Example usage: "assess vulnerabilities on scanme.nmap.org"`,
+      func: async (target) => {
+        try {
+          console.log(`Starting vulnerability assessment for ${target}`);
+          
+          // Step 1: Service version scan
+          console.log('Step 1: Scanning for services and versions...');
+          const scanResult = await nmapTool.func(`${target} -sV`);
+          
+          // Parse scan results to extract services
+          const services = this.parseServicesFromScan(scanResult);
+          
+          if (services.length === 0) {
+            return `Vulnerability Assessment Complete for ${target}:\n\nNo open services detected. The target appears to be well-protected or filtered.`;
+          }
+          
+          // Step 2: Search for exploits for each service
+          console.log('Step 2: Searching for exploits...');
+          const exploitResults = [];
+          
+          for (const service of services) {
+            try {
+              // Create search terms from service info
+              const searchTerms = [
+                service.product,
+                service.version ? `${service.product} ${service.version}` : null,
+                service.info
+              ].filter(Boolean);
+              
+              for (const term of searchTerms) {
+                const exploits = await exploitSearchTool.func({ searchTerm: term });
+                if (exploits && !exploits.includes('No exploits found')) {
+                  exploitResults.push({
+                    service: `${service.port}/${service.protocol} - ${service.product} ${service.version || ''}`,
+                    exploits: exploits
+                  });
+                  break; // Found exploits, no need to try other terms
+                }
+              }
+            } catch (error) {
+              console.error(`Error searching exploits for ${service.product}:`, error);
+            }
+          }
+          
+          // Step 3: Generate comprehensive report
+          let report = `🔍 Vulnerability Assessment Report for ${target}\n\n`;
+          report += `📊 Scan Summary:\n`;
+          report += scanResult + '\n\n';
+          
+          if (exploitResults.length > 0) {
+            report += `⚠️ Potential Vulnerabilities Found:\n\n`;
+            for (const result of exploitResults) {
+              report += `Service: ${result.service}\n`;
+              report += result.exploits + '\n\n';
+            }
+            
+            report += `🎯 Recommendations:\n`;
+            report += `1. Update all services to their latest versions\n`;
+            report += `2. Review and patch the identified vulnerabilities\n`;
+            report += `3. Consider running MetasploitVulnerabilityCheck for specific exploits\n`;
+            report += `4. Implement proper firewall rules to limit exposure\n`;
+          } else {
+            report += `✅ No known exploits found for the discovered services.\n\n`;
+            report += `Note: This doesn't mean the system is secure. Always:\n`;
+            report += `- Keep services updated to latest versions\n`;
+            report += `- Follow security best practices\n`;
+            report += `- Perform regular security assessments\n`;
+          }
+          
+          return report;
+          
+        } catch (error) {
+          return `Error during vulnerability assessment: ${error.message}`;
+        }
+      }
+    });
+  }
+  
+  /**
+   * Parse services from Nmap scan output
+   * @param {string} scanOutput - The Nmap scan output
+   * @returns {Array} Array of service objects
+   */
+  parseServicesFromScan(scanOutput) {
+    const services = [];
+    const lines = scanOutput.split('\n');
+    
+    for (const line of lines) {
+      // Match lines like: "22/tcp open ssh OpenSSH 7.4 (protocol 2.0)"
+      const serviceMatch = line.match(/(\d+)\/(tcp|udp)\s+open\s+(\S+)\s*(.*)?/);
+      if (serviceMatch) {
+        const [_, port, protocol, service, versionInfo] = serviceMatch;
+        
+        // Try to extract product and version from version info
+        let product = service;
+        let version = '';
+        let info = versionInfo || '';
+        
+        // Common patterns for version extraction
+        const versionMatch = versionInfo?.match(/^(\S+)\s+([\d.]+)/);
+        if (versionMatch) {
+          product = versionMatch[1];
+          version = versionMatch[2];
+        }
+        
+        services.push({
+          port: parseInt(port),
+          protocol,
+          service,
+          product,
+          version,
+          info: info.trim()
+        });
+      }
+    }
+    
+    return services;
   }
   
   formatWorkflowResult(result) {

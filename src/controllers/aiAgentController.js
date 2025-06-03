@@ -1,5 +1,6 @@
 const { v4: uuidv4 } = require('uuid');
 const { processUserCommand } = require('../services/aiAgentService');
+const { contextManager } = require('../services/contextManager');
 const websocketManager = require('../websocketManager');
 const Conversation = require('../models/Conversation');
 
@@ -153,4 +154,40 @@ exports.healthCheck = (req, res) => {
       sessions: wsSessionCount
     }
   });
+};
+
+/**
+ * Get session statistics and context insights
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+exports.getSessionStats = (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    
+    if (!sessionId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Session ID is required'
+      });
+    }
+    
+    const stats = contextManager.getSessionStats(sessionId);
+    const insights = contextManager.getContextualInsights(sessionId);
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        ...stats,
+        insights
+      }
+    });
+  } catch (error) {
+    console.error('Error getting session stats:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      message: error.message
+    });
+  }
 }; 
